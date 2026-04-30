@@ -1,0 +1,122 @@
+:root {
+  --comic-blue: #0056b3;
+  --comic-gold: #FFD700;
+  --comic-bg: #0A0E14;
+  --comic-card: rgba(30, 40, 55, 0.8);
+  --glass-border: rgba(255, 215, 0, 0.3);
+  --text-main: #FFFFFF;
+  --text-dim: #B0C4DE;
+  font-family: 'Outfit', sans-serif;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Outfit:wght@300;600;800&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--comic-bg);
+  color: var(--text-main);
+  background-image: 
+    radial-gradient(circle at top right, rgba(0, 86, 179, 0.2), transparent),
+    url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
+}
+
+.mobile-container {
+  max-width: 500px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.comic-header {
+  text-align: center;
+  padding: 30px 0;
+}
+
+.comic-header h1 {
+  font-family: 'Bangers', system-ui;
+  font-size: 3rem;
+  color: var(--comic-gold);
+  text-shadow: 4px 4px 0px var(--comic-blue);
+  letter-spacing: 2px;
+  transform: rotate(-2deg);
+}
+
+.glass-card {
+  background: var(--comic-card);
+  backdrop-filter: blur(10px);
+  border: 3px solid #000;
+  border-radius: 20px;
+  padding: 25px;
+  box-shadow: 10px 10px 0px #000;
+  margin-top: 20px;
+}
+
+.label-comic {
+  font-family: 'Bangers', sans-serif;
+  font-size: 1.2rem;
+  color: var(--comic-gold);
+  letter-spacing: 1px;
+  display: block;
+  margin-bottom: 10px;
+}
+
+textarea {
+  width: 100%;
+  background: #FFF;
+  color: #000;
+  border: 3px solid #000;
+  border-radius: 10px;
+  padding: 15px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.forge-btn {
+  width: 100%;
+  background: var(--comic-gold);
+  color: #000;
+  border: 3px solid #000;
+  padding: 15px;
+  font-family: 'Bangers', sans-serif;
+  font-size: 1.8rem;
+  margin-top: 20px;
+  cursor: pointer;
+  box-shadow: 5px 5px 0px #000;
+  transition: all 0.1s;
+}
+
+.forge-btn:active {
+  transform: translate(3px, 3px);
+  box-shadow: 2px 2px 0px #000;
+}
+
+.status-bubble {
+  background: #FFF;
+  color: #000;
+  padding: 20px;
+  border-radius: 20px;
+  border: 3px solid #000;
+  position: relative;
+  margin-top: 20px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.status-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -15px;
+  left: 50%;
+  border-width: 15px 15px 0;
+  border-style: solid;
+  border-color: #FFF transparent;
+  display: block;
+  width: 0;
+}

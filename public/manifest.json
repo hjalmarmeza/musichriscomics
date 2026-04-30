@@ -1,0 +1,16 @@
+{
+  "short_name": "MC Comic",
+  "name": "MusiChris Comic Forge",
+  "icons": [
+    {
+      "src": "logo_comic.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#0A0E14",
+  "background_color": "#0A0E14"
+}
