@@ -97,6 +97,106 @@ textarea {
   box-shadow: 2px 2px 0px #000;
 }
 
+/* Splash Screen */
+.splash-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle at center, #1a2a44 0%, #0a0e14 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  cursor: pointer;
+  text-align: center;
+}
+
+.pulse-logo {
+  width: 200px;
+  filter: drop-shadow(0 0 20px var(--comic-gold));
+  animation: pulse 2s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.8; }
+}
+
+.splash-title {
+  font-family: 'Bangers', cursive;
+  font-size: 3rem;
+  letter-spacing: 2px;
+  color: #fff;
+  margin-top: 20px;
+  text-shadow: 3px 3px 0px var(--comic-blue);
+}
+
+.splash-subtitle {
+  color: var(--comic-gold);
+  font-weight: 900;
+  letter-spacing: 4px;
+  font-size: 0.8rem;
+}
+
+.tap-to-start {
+  margin-top: 50px;
+  color: rgba(255,255,255,0.5);
+  font-weight: bold;
+  animation: blink 1.5s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+.fade-in { animation: fadeIn 0.5s ease-out; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.comic-header-mini {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px;
+  background: rgba(0,0,0,0.3);
+  border-bottom: 1px solid var(--comic-blue);
+}
+
+.brand-tag {
+  font-weight: 900;
+  color: var(--comic-gold);
+  font-size: 0.9rem;
+}
+
+.forge-header h2 {
+  font-family: 'Bangers';
+  color: var(--comic-blue);
+  margin-bottom: 5px;
+}
+
+.forge-btn-premium {
+  width: 100%;
+  padding: 15px;
+  background: var(--comic-blue);
+  color: #fff;
+  border: none;
+  font-family: 'Bangers';
+  font-size: 1.5rem;
+  border-radius: 12px;
+  cursor: pointer;
+  margin-top: 20px;
+  box-shadow: 0 6px 0 #003d80;
+  transition: all 0.2s;
+}
+
+.forge-btn-premium:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #003d80;
+}
+
 .status-bubble {
   background: #FFF;
   color: #000;

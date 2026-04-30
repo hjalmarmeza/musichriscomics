@@ -4,11 +4,12 @@ import json
 import time
 import subprocess
 import random
+import numpy as np
 from pathlib import Path
 from dotenv import load_dotenv
 from huggingface_hub import InferenceClient
 from io import BytesIO
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageStat
 
 # Configuración Maestra
 load_dotenv()
@@ -41,31 +42,69 @@ class MusiChrisComicEngine:
             return {"audio_url": "https://res.cloudinary.com/dveqs8f3n/video/upload/v1765360897/wi5649ngot0kzi9m7mwu.mp3"}
 
     def generate_title_card(self, title):
-        """Genera una pantalla inicial premium"""
+        """Genera una pantalla inicial standard premium"""
         canvas = Image.new("RGB", (1080, 1920), (10, 14, 20))
         draw = ImageDraw.Draw(canvas)
         
-        # Cargar logo transparente
         try:
             logo = Image.open(self.public_dir / "logo_v4.png").convert("RGBA")
-            logo = logo.resize((600, int(600 * logo.height / logo.width)), Image.Resampling.LANCZOS)
-            canvas.paste(logo, ((1080 - 600) // 2, 400), logo)
+            logo = logo.resize((500, int(500 * logo.height / logo.width)), Image.Resampling.LANCZOS)
+            canvas.paste(logo, ((1080 - 500) // 2, 300), logo)
         except: pass
 
         try:
-            font_title = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 80)
-            font_sub = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 40)
+            font_title = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 90)
+            font_brand = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 50)
+            font_sub = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 35)
         except:
-            font_title = font_sub = ImageFont.load_default()
+            font_title = font_brand = font_sub = ImageFont.load_default()
 
-        # Texto del título
-        draw.text((540, 1000), "MUSICHRIS COMIC", font=font_sub, fill=(255, 215, 0), anchor="mm")
-        draw.text((540, 1150), title.upper(), font=font_title, fill=(255, 255, 255), anchor="mm")
-        draw.text((540, 1300), "PRESENTA", font=font_sub, fill=(255, 215, 0), anchor="mm")
+        # Layout solicitado: Titulo al centro, Musichris_Studio centro-abajo
+        draw.text((540, 850), "HISTORIA BÍBLICA", font=font_sub, fill=(255, 215, 0), anchor="mm")
+        
+        # Wrap de título si es largo
+        lines = []
+        words = title.upper().split()
+        curr = ""
+        for w in words:
+            if len(curr + w) < 15: curr += w + " "
+            else: lines.append(curr.strip()); curr = w + " "
+        lines.append(curr.strip())
+        
+        y_title = 1000
+        for line in lines:
+            draw.text((540, y_title), line, font=font_title, fill=(255, 255, 255), anchor="mm")
+            y_title += 110
+
+        # Marca centro-abajo (no al final)
+        draw.text((540, 1600), "MUSICHRIS_STUDIO", font=font_brand, fill=(255, 215, 0), anchor="mm")
+        draw.text((540, 1670), "PRODUCCIÓN CLOUD IA", font=font_sub, fill=(255, 255, 255, 150), anchor="mm")
         
         path = self.assets_dir / "title_card.png"
         canvas.save(path)
         return str(path)
+
+    def analyze_best_corner(self, img, box_w, box_h):
+        """Analiza la complejidad visual para decidir si poner el texto a la izq o der"""
+        margin = 40
+        # Cuadrante Izquierdo Superior vs Derecho Superior
+        left_area = img.crop((margin, margin, margin + box_w, margin + box_h))
+        right_area = img.crop((1080 - margin - box_w, margin, 1080 - margin, margin + box_h))
+        
+        # Calculamos la desviación estándar (complejidad)
+        left_stat = ImageStat.Stat(left_area).stddev
+        right_stat = ImageStat.Stat(right_area).stddev
+        
+        # Sumamos las desviaciones de los canales R, G, B
+        left_score = sum(left_stat)
+        right_score = sum(right_stat)
+        
+        # Preferimos la izquierda si la diferencia no es mucha, 
+        # pero si la derecha está MUCHO más vacía, vamos a la derecha.
+        # YouTube UI suele estar más cargada a la derecha, así que sesgamos a la izquierda.
+        if right_score < (left_score * 0.7): # Solo si la derecha es notablemente más simple
+            return 1080 - margin - box_w, margin
+        return margin, margin
 
     def add_text_to_image(self, image_bytes, text):
         img = Image.open(BytesIO(image_bytes)).convert("RGB")
@@ -79,7 +118,7 @@ class MusiChrisComicEngine:
         canvas.paste(img, offset)
         
         draw = ImageDraw.Draw(canvas)
-        padding, rect_margin = 40, 20
+        padding = 40
         
         try:
             font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 45)
@@ -88,29 +127,30 @@ class MusiChrisComicEngine:
             
         lines = []
         words = text.split()
-        current_line = ""
-        for word in words:
-            if len(current_line + word) < 30:
-                current_line += word + " "
-            else:
-                lines.append(current_line.strip()); current_line = word + " "
-        lines.append(current_line.strip())
+        curr = ""
+        for w in words:
+            if len(curr + w) < 25: curr += w + " "
+            else: lines.append(curr.strip()); curr = w + " "
+        lines.append(curr.strip())
         
-        max_line_width = 0
-        for line in lines:
-            bbox = draw.textbbox((0, 0), line, font=font)
-            max_line_width = max(max_line_width, bbox[2] - bbox[0])
+        max_w = 0
+        for l in lines:
+            bbox = draw.textbbox((0, 0), l, font=font)
+            max_w = max(max_w, bbox[2] - bbox[0])
         
-        box_w, box_h = max_line_width + (padding * 2), (len(lines) * 60) + (padding)
+        box_w, box_h = max_w + (padding * 2), (len(lines) * 60) + (padding)
+        
+        # Inteligencia de Posicionamiento
+        pos_x, pos_y = self.analyze_best_corner(canvas, box_w, box_h)
         
         overlay = Image.new('RGBA', (1080, 1920), (0,0,0,0))
         overlay_draw = ImageDraw.Draw(overlay)
-        overlay_draw.rectangle([rect_margin, rect_margin, rect_margin + box_w, rect_margin + box_h], fill=(0, 0, 0, 180))
+        overlay_draw.rectangle([pos_x, pos_y, pos_x + box_w, pos_y + box_h], fill=(0, 0, 0, 180))
         canvas.paste(overlay, (0,0), overlay)
         
-        y_text = rect_margin + 30
-        for line in lines:
-            draw.text((rect_margin + padding, y_text), line, font=font, fill=(255, 215, 0))
+        y_text = pos_y + 30
+        for l in lines:
+            draw.text((pos_x + padding, y_text), l, font=font, fill=(255, 215, 0))
             y_text += 60
             
         output = BytesIO()
@@ -166,7 +206,6 @@ class MusiChrisComicEngine:
 
         comic_duration = len(full_sequence) * 5
         if outro_path.exists():
-            # Filtro para Cierre Circular sin fondo negro
             final_cmd = [
                 "ffmpeg", "-y",
                 "-i", str(temp_comic),
@@ -190,4 +229,3 @@ class MusiChrisComicEngine:
 
 if __name__ == "__main__":
     engine = MusiChrisComicEngine()
-    # Demo local no necesaria, se usa vía Workflow
