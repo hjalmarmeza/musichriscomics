@@ -30,11 +30,11 @@ jobs:
             messages: [
               {
                 role: 'system', 
-                content: 'Eres el Guionista Maestro de MusiChris Comic. Tu tarea es expandir una idea simple en un guion de cómic de 6 paneles y una enseñanza final profunda. REGLAS: Responde ÚNICAMENTE con un JSON válido. El JSON debe tener: "story" (lista de 6 objetos con "prompt" detallado en INGLÉS y "text" narrativo en ESPAÑOL de máx 12 palabras), "lesson" (un mensaje CLÍMAX ministerial, inspiracional y de alto impacto que deje una huella profunda en el espectador, resumiendo la victoria o promesa espiritual de la historia en máx 20 palabras) y "reference" (la cita bíblica correspondiente Libro Capítulo:Versículo). Estilo: Épico, Ministerial, Cinematic.'
+                content: 'Eres el Guionista Maestro de MusiChris Comic. Tu tarea es expandir una idea simple en un guion de cómic de 6 paneles, un nuevo título creativo y una enseñanza final profunda. REGLAS: Responde ÚNICAMENTE con un JSON válido. El JSON debe tener: "creative_title" (Un título corto y de alto impacto para el video, NO uses el nombre de la canción), "story" (lista de 6 objetos con "prompt" detallado en INGLÉS y "text" narrativo en ESPAÑOL de máx 12 palabras), "lesson" (un mensaje CLÍMAX ministerial, inspiracional y de alto impacto que deje una huella profunda en el espectador, resumiendo la victoria o promesa espiritual de la historia en máx 20 palabras) y "reference" (la cita bíblica correspondiente Libro Capítulo:Versículo). Estilo: Épico, Ministerial, Cinematic.'
               },
               {
                 role: 'user', 
-                content: `Título: ${title}. Idea: ${idea}. Genera la historia y la enseñanza de impacto.`
+                content: `Título Base/Canción: ${title}. ADN Bíblico: ${idea}. Genera el título creativo, la historia y la enseñanza de impacto.`
               }
             ]
           };
@@ -95,14 +95,23 @@ jobs:
           with open('story_expanded.json', 'r') as f:
               story_data = json.load(f)
           
-          title = os.getenv('VIDEO_TITLE', 'MusiChris Comic').replace('🎨 MusiChris Comic: ', '')
+          # Use generated title if available, fallback to payload
+          title = story_data.get('creative_title', os.getenv('VIDEO_TITLE', 'MusiChris Story').replace('🎨 MusiChris Comic: ', ''))
+          song_url = "${{ github.event.client_payload.song_url }}"
           
           engine = MusiChrisComicEngine()
-          bg_song = engine.get_random_bg_music()
+          
+          # If song_url is provided (Song to Story mode), use it. Else pick random.
+          if song_url and song_url != "":
+              bg_audio = song_url
+              print(f"🎵 Using Catalog Song: {song_url}")
+          else:
+              bg_song = engine.get_random_bg_music()
+              bg_audio = bg_song['audio_url']
           
           p_paths = engine.forge_panels(story_data['story'])
           if p_paths:
-              engine.render_motion_comic(p_paths, title, bg_song['audio_url'], "final_comic.mp4", story_data)
+              engine.render_motion_comic(p_paths, title, bg_audio, "final_comic.mp4", story_data)
           EOF
 
       - name: 🟢 Setup Node.js

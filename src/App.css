@@ -107,11 +107,127 @@
   letter-spacing: 2px;
 }
 
-.input-group {
+/* --- MODE SELECTOR --- */
+.mode-selector {
+  display: flex;
+  margin: 0 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 5px;
+  border-radius: 15px;
+  gap: 5px;
+}
+
+.mode-selector button {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 12px;
+  font-family: var(--font-main);
+  font-weight: 600;
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.mode-selector button.active {
+  background: var(--bg-glass);
+  color: var(--accent-gold);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+/* --- CATALOG MODE --- */
+.catalog-mode {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  margin-bottom: 2.5rem;
+  max-height: 400px;
+}
+
+.input-comic-small {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 0.8rem 1rem;
+  color: white;
+  font-size: 0.85rem;
+}
+
+.song-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+.song-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 15px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.song-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--accent-gold-muted);
+}
+
+.song-card.selected {
+  background: rgba(255, 215, 0, 0.08);
+  border-color: var(--accent-gold);
+}
+
+.song-thumb {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border-glass);
+}
+
+.song-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 2px;
+}
+
+.song-album {
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.selection-preview {
+  background: rgba(255, 215, 0, 0.05);
+  padding: 15px;
+  border-radius: 15px;
+  border-left: 3px solid var(--accent-gold);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.focus-text {
+  opacity: 0.7;
+  font-style: italic;
+  margin-top: 5px;
+}
+
+.input-field {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 1.2rem;
 }
 
 .label-comic {

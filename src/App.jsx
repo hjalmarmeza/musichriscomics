@@ -1,23 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import catalogData from '../data/catalog.json';
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
+  const [mode, setMode] = useState('manual'); // 'manual' or 'song'
   const [storyTitle, setStoryTitle] = useState('');
   const [storyIdea, setStoryIdea] = useState('');
+  const [selectedSong, setSelectedSong] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [isForging, setIsForging] = useState(false);
   const [status, setStatus] = useState('');
 
   const GH_TOKEN = localStorage.getItem('GH_TOKEN') || '';
   const GH_REPO = 'hjalmarmeza/musichris_comic';
 
-  useEffect(() => {
-    // Auto-hide splash after a few seconds or on interaction
-    const timer = setTimeout(() => {
-      // Optional: auto transition
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, []);
+  const filteredCatalog = catalogData.filter(song => 
+    song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (song.album && song.album.toLowerCase().includes(searchQuery.toLowerCase()))
+  ).slice(0, 20); // Limit to 20 for performance in preview
 
   const triggerForgeAction = async () => {
     if (!GH_TOKEN) {
@@ -29,13 +30,29 @@ function App() {
       return;
     }
 
-    if (!storyTitle || !storyIdea) {
-      alert('Por favor, llena ambos campos para iniciar la forja.');
-      return;
+    let payload = {};
+    if (mode === 'manual') {
+      if (!storyTitle || !storyIdea) {
+        alert('Por favor, llena ambos campos.');
+        return;
+      }
+      payload = { title: storyTitle, description: storyIdea };
+    } else {
+      if (!selectedSong) {
+        alert('Por favor, selecciona una canción del catálogo.');
+        return;
+      }
+      // Song to Story Mode: We pass the song details to the forge
+      payload = { 
+        title: selectedSong.title, 
+        description: `Basado en la canción "${selectedSong.title}". Versículo: ${selectedSong.context?.verse || 'N/A'}. Enfoque: ${selectedSong.context?.focus || 'N/A'}`,
+        song_url: selectedSong.audio_url,
+        is_song_mode: true
+      };
     }
 
     setIsForging(true);
-    setStatus('🧠 ACTIVANDO MASTER FORGE IA...');
+    setStatus('🧠 SINCRONIZANDO ADN MINISTERIAL...');
 
     try {
       const response = await fetch(`https://api.github.com/repos/${GH_REPO}/dispatches`, {
@@ -47,10 +64,7 @@ function App() {
         },
         body: JSON.stringify({
           event_type: 'forge_comic',
-          client_payload: {
-            title: storyTitle,
-            description: storyIdea
-          }
+          client_payload: payload
         })
       });
 
@@ -60,6 +74,7 @@ function App() {
           setIsForging(false);
           setStoryTitle('');
           setStoryIdea('');
+          setSelectedSong(null);
           setShowSplash(true);
         }, 4000);
       } else {
@@ -76,9 +91,10 @@ function App() {
       <div className="splash-screen" onClick={() => setShowSplash(false)}>
         <div className="splash-overlay"></div>
         <div className="splash-content fade-in">
-          <img src="logo_v4.png" alt="Logo" className="pulse-logo" style={{ width: '220px' }} />
-          <h1 className="splash-title">MUSICHRIS</h1>
-          <div className="tap-to-start">TOCA PARA ENTRAR AL SISTEMA</div>
+          <img src="logo_v4.png" alt="Logo" className="pulse-logo" style={{ width: '180px' }} />
+          <h1 className="splash-title" style={{ fontSize: '2.5rem' }}>MUSICHRIS</h1>
+          <p style={{ letterSpacing: '8px', fontSize: '0.6rem', opacity: 0.6, marginTop: '-10px', marginBottom: '20px' }}>COMIC ENGINE</p>
+          <div className="tap-to-start">TOCA PARA INICIAR PRODUCCIÓN</div>
         </div>
       </div>
     );
@@ -87,44 +103,79 @@ function App() {
   return (
     <div className="mobile-container fade-in">
       <header className="comic-header-mini">
-        <img src="logo_v4.png" alt="Logo" style={{ width: '60px', cursor: 'pointer' }} onClick={() => setShowSplash(true)} />
-        <div className="brand-tag">DIVINE_ENGINE_v1.0</div>
+        <img src="logo_v4.png" alt="Logo" style={{ width: '50px', cursor: 'pointer' }} onClick={() => setShowSplash(true)} />
       </header>
 
-      <main className="glass-card">
+      <div className="mode-selector">
+        <button className={mode === 'manual' ? 'active' : ''} onClick={() => setMode('manual')}>MANUAL</button>
+        <button className={mode === 'song' ? 'active' : ''} onClick={() => setMode('song')}>SONG TO STORY</button>
+      </div>
+
+      <main className="glass-card" style={{ marginTop: '10px' }}>
         {!isForging ? (
           <>
-            <div className="forge-header" style={{ textAlign: 'center', marginBottom: '40px' }}>
-              <h2 style={{ fontSize: '1.8rem', color: 'white', fontWeight: '800' }}>NUEVA FORJA</h2>
-              <div style={{ height: '3px', background: 'var(--accent-gold)', width: '30px', margin: '15px auto', borderRadius: '10px' }}></div>
-            </div>
-            
-            <div className="input-group">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label className="label-comic">Título de Producción</label>
-                <input 
-                  type="text"
-                  placeholder="Ej: El Sacrificio de Isaac"
-                  value={storyTitle}
-                  onChange={(e) => setStoryTitle(e.target.value)}
-                  className="input-comic"
-                />
+            {mode === 'manual' ? (
+              <div className="fade-in">
+                <div className="input-group">
+                  <div className="input-field">
+                    <label className="label-comic">Título del Video</label>
+                    <input 
+                      type="text"
+                      placeholder="Ej: La Fe de Abraham"
+                      value={storyTitle}
+                      onChange={(e) => setStoryTitle(e.target.value)}
+                      className="input-comic"
+                    />
+                  </div>
+                  <div className="input-field">
+                    <label className="label-comic">Idea Central</label>
+                    <textarea 
+                      rows="3" 
+                      placeholder="Describe la enseñanza o historia..."
+                      value={storyIdea}
+                      onChange={(e) => setStoryIdea(e.target.value)}
+                      className="input-comic"
+                    />
+                  </div>
+                </div>
               </div>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label className="label-comic">Idea Ministerial</label>
-                <textarea 
-                  rows="4" 
-                  placeholder="Describe la esencia de la historia..."
-                  value={storyIdea}
-                  onChange={(e) => setStoryIdea(e.target.value)}
-                  className="input-comic"
-                />
+            ) : (
+              <div className="catalog-mode fade-in">
+                <div className="search-bar">
+                  <input 
+                    type="text" 
+                    placeholder="Buscar canción o álbum..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="input-comic-small"
+                  />
+                </div>
+                <div className="song-grid">
+                  {filteredCatalog.map((song, i) => (
+                    <div 
+                      key={i} 
+                      className={`song-card ${selectedSong?.title === song.title ? 'selected' : ''}`}
+                      onClick={() => setSelectedSong(song)}
+                    >
+                      <img src={song.thumbnail} alt="cover" className="song-thumb" />
+                      <div className="song-info">
+                        <div className="song-title">{song.title}</div>
+                        <div className="song-album">{song.album}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {selectedSong && (
+                  <div className="selection-preview fade-in">
+                    <p>📖 {selectedSong.context?.verse || 'Cita no disponible'}</p>
+                    <p className="focus-text">🎯 {selectedSong.context?.focus?.substring(0, 80)}...</p>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
 
-            <button className="forge-btn-premium" onClick={triggerForgeAction}>
-              INICIAR FORJA MAESTRA
+            <button className="forge-btn-premium" onClick={triggerForgeAction} style={{ marginTop: '20px' }}>
+              {mode === 'manual' ? 'FORJAR HISTORIA' : 'FORJAR DESDE CANCIÓN'}
             </button>
           </>
         ) : (
@@ -135,8 +186,8 @@ function App() {
         )}
       </main>
 
-      <footer className="footer-comic" style={{ padding: '30px', textAlign: 'center', fontSize: '0.6rem', opacity: 0.4, letterSpacing: '3px' }}>
-         IA MINISTERIAL • 4K • HIGH DENSITY • 9 SCREENS
+      <footer className="footer-comic">
+         9 SCREENS • 4K RENDER • DIVINE AI
       </footer>
     </div>
   );
