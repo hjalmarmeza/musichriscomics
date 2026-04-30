@@ -164,16 +164,68 @@ class MusiChrisComicEngine:
         return None
 
     def forge_panels(self, story_data):
-        panel_paths = []
+        panel_vids = []
         for i, entry in enumerate(story_data):
             print(f"🎨 Panel {i+1}/{len(story_data)}...")
             image_data = self.query_hf(entry['prompt'])
-            if image_data:
-                final_image_data = self.add_text_to_image(image_data, entry['text'])
-                path = self.assets_dir / f"panel_{i:02d}.png"
-                with open(path, "wb") as f: f.write(final_image_data)
-                panel_paths.append(str(path))
-        return panel_paths
+            if not image_data: continue
+            
+            # Guardar imagen base para zoom
+            img_path = self.temp_dir / f"raw_panel_{i}.png"
+            with open(img_path, "wb") as f: f.write(image_data)
+            
+            # Preparar imagen para análisis de texto (resize/canvas)
+            img = Image.open(BytesIO(image_data)).convert("RGB")
+            new_w, new_h = 1080, int(img.height * (1080 / img.width))
+            img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+            canvas = Image.new("RGB", (1080, 1920), (10, 14, 20))
+            canvas.paste(img, (0, (1920 - new_h) // 2))
+            
+            # Inteligencia de Posicionamiento
+            font_path = "/System/Library/Fonts/Helvetica.ttc"
+            font_size = 45
+            padding = 40
+            
+            # Wrap y medida de texto
+            words = entry['text'].split()
+            lines = []
+            curr = ""
+            for w in words:
+                if len(curr + w) < 25: curr += w + " "
+                else: lines.append(curr.strip()); curr = w + " "
+            lines.append(curr.strip())
+            
+            # Medir caja (simplificado para FFmpeg)
+            box_w = 700 
+            box_h = (len(lines) * 60) + padding
+            pos_x, pos_y = self.analyze_best_corner(canvas, box_w, box_h)
+            
+            # Generar video individual con Zoom + Texto Temporizado (0.5s a 4s)
+            vid_path = self.assets_dir / f"panel_vid_{i}.mp4"
+            
+            drawtext_filters = []
+            for j, line in enumerate(lines):
+                line_clean = line.replace("'", "").replace(":", "\\:")
+                drawtext_filters.append(
+                    f"drawtext=fontfile='{font_path}':text='{line_clean}':fontcolor=0xFFD700:fontsize={font_size}:x={pos_x+padding}:y={pos_y+30+(j*60)}:enable='between(t,0.5,4)'"
+                )
+            
+            # Drawbox para el recuadro premium
+            drawbox_filter = f"drawbox=x={pos_x}:y={pos_y}:w={box_w}:h={box_h}:color=black@0.7:t=fill:enable='between(t,0.5,4)'"
+            
+            filters = [
+                f"zoompan=z='min(zoom+0.001,1.5)':d=125:s=1080x1920",
+                drawbox_filter
+            ] + drawtext_filters
+            
+            subprocess.run([
+                "ffmpeg", "-y", "-loop", "1", "-i", str(img_path),
+                "-vf", ",".join(filters),
+                "-t", "5", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(vid_path)
+            ], check=True)
+            
+            panel_vids.append(str(vid_path))
+        return panel_vids
 
         intro_path = self.generate_title_video(title)
         
@@ -194,17 +246,36 @@ class MusiChrisComicEngine:
             "-c:v", "libx264", "-pix_fmt", "yuv420p", str(panels_video)
         ], check=True)
 
-        # 2. Unir INTRO + PANELES
-        sequence_video = self.temp_dir / "intro_and_panels.mp4"
+        # 2. Unir INTRO + PANELES con XFADE (0.5s)
+        # Usamos filter_complex para encadenar xfades
+        # Intro(8s) + P1(5s) + P2(5s)... 
+        # Cada xfade reduce 0.5s la duración total
+        vids = [intro_path] + panel_paths
+        filter_complex = ""
+        last_out = "[v0]"
+        # Pre-preparar los inputs para el filter_complex
+        for i in range(len(vids)):
+            filter_complex += f"[{i}:v]settb=AVTB,setpts=PTS-STARTPTS[v{i}];"
+        
+        offset = 7.5 # Intro termina en 8s, xfade de 0.5s empieza en 7.5s
+        for i in range(1, len(vids)):
+            next_out = f"cx{i}"
+            filter_complex += f"{last_out}[v{i}]xfade=transition=fade:duration=0.5:offset={offset}[{next_out}];"
+            last_out = f"[{next_out}]"
+            offset += 4.5 # Cada panel dura 5s, pero con solape de 0.5s, el offset avanza 4.5s
+            
+        final_input_args = []
+        for v in vids:
+            final_input_args.extend(["-i", str(v)])
+            
+        sequence_video = self.temp_dir / "full_sequence.mp4"
         subprocess.run([
-            "ffmpeg", "-y", 
-            "-i", str(intro_path), 
-            "-i", str(panels_video),
-            "-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0[v]",
-            "-map", "[v]", "-c:v", "libx264", str(sequence_video)
+            "ffmpeg", "-y"] + final_input_args + [
+            "-filter_complex", filter_complex,
+            "-map", last_out, "-c:v", "libx264", str(sequence_video)
         ], check=True)
 
-        comic_duration = 8 + (len(panel_paths) * 5) # 8s intro + paneles
+        comic_duration = 8 + (len(panel_paths) * 4.5) # Duración ajustada por solapes
         if outro_path.exists():
             final_cmd = [
                 "ffmpeg", "-y",
