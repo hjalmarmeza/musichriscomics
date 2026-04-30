@@ -11,6 +11,10 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isForging, setIsForging] = useState(false);
   const [status, setStatus] = useState('');
+  const [forgedSongs, setForgedSongs] = useState(() => {
+    const saved = localStorage.getItem('forged_songs_history');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   const GH_TOKEN = localStorage.getItem('GH_TOKEN') || '';
   const GH_REPO = 'hjalmarmeza/musichris_comic';
@@ -54,6 +58,13 @@ function App() {
     setIsForging(true);
     setStatus('🧠 SINCRONIZANDO ADN MINISTERIAL...');
 
+    // Registrar en la memoria de forja si estamos en modo canción
+    if (activeTab === 'song' && selectedSong) {
+      const newForged = [...forgedSongs, selectedSong.id || selectedSong.title];
+      setForgedSongs(newForged);
+      localStorage.setItem('forged_songs_history', JSON.stringify(newForged));
+    }
+    
     try {
       const response = await fetch(`https://api.github.com/repos/${GH_REPO}/dispatches`, {
         method: 'POST',
@@ -151,19 +162,23 @@ function App() {
                   />
                 </div>
                 <div className="song-grid">
-                  {filteredCatalog.map((song, i) => (
-                    <div 
-                      key={i} 
-                      className={`song-card ${selectedSong?.title === song.title ? 'selected' : ''}`}
-                      onClick={() => setSelectedSong(song)}
-                    >
-                      <img src={song.thumbnail} alt="cover" className="song-thumb" />
-                      <div className="song-info">
-                        <div className="song-title">{song.title}</div>
-                        <div className="song-album">{song.album}</div>
+                  {filteredCatalog.map((song, idx) => {
+                    const isForged = forgedSongs.includes(song.id || song.title);
+                    return (
+                      <div 
+                        key={idx} 
+                        className={`song-card ${selectedSong === song ? 'active' : ''} ${isForged ? 'is-forged' : ''}`}
+                        onClick={() => setSelectedSong(song)}
+                      >
+                        <img src={song.thumbnail || 'default_album.png'} alt={song.title} className="song-thumb" />
+                        {isForged && <div className="forged-badge">✓ FORJADO</div>}
+                        <div className="song-info">
+                          <p className="song-title">{song.title}</p>
+                          <p className="song-album">{song.album}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 {selectedSong && (
                   <div className="selection-preview fade-in">

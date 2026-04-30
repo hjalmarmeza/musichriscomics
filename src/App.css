@@ -326,3 +326,32 @@
   margin-top: auto;
   font-family: var(--font-main);
 }
+
+/* --- FORGE MEMORY --- */
+.song-card.is-forged {
+  opacity: 0.5;
+}
+
+.song-card.is-forged img {
+  filter: grayscale(0.5);
+}
+
+.forged-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: linear-gradient(135deg, #FFD700 0%, #B8860B 100%);
+  color: black;
+  font-size: 0.55rem;
+  font-weight: 900;
+  padding: 3px 8px;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  z-index: 5;
+  animation: badgeIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes badgeIn {
+  from { transform: scale(0) rotate(-20deg); opacity: 0; }
+  to { transform: scale(1) rotate(0deg); opacity: 1; }
+}
