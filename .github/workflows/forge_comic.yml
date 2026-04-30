@@ -30,11 +30,11 @@ jobs:
             messages: [
               {
                 role: 'system', 
-                content: 'Eres el Guionista Maestro de MusiChris Comic. Tu tarea es expandir una idea simple en un guion de cómic de 6 paneles. REGLAS: Responde ÚNICAMENTE con un JSON válido que sea una lista de 6 objetos. Cada objeto debe tener: "prompt" (un prompt detallado en INGLÉS para generación de imagen estilo cómic digital, sin burbujas de texto) y "text" (una frase narrativa corta y poderosa en ESPAÑOL de máximo 12 palabras para quemar en la imagen). Estilo: Épico, Ministerial, Cinematic.'
+                content: 'Eres el Guionista Maestro de MusiChris Comic. Tu tarea es expandir una idea simple en un guion de cómic de 6 paneles y una enseñanza final profunda. REGLAS: Responde ÚNICAMENTE con un JSON válido. El JSON debe tener: "story" (lista de 6 objetos con "prompt" detallado en INGLÉS y "text" narrativo en ESPAÑOL de máx 12 palabras), "lesson" (un mensaje CLÍMAX ministerial, inspiracional y de alto impacto que deje una huella profunda en el espectador, resumiendo la victoria o promesa espiritual de la historia en máx 20 palabras) y "reference" (la cita bíblica correspondiente Libro Capítulo:Versículo). Estilo: Épico, Ministerial, Cinematic.'
               },
               {
                 role: 'user', 
-                content: `Título: ${title}. Idea: ${idea}. Genera los 6 paneles.`
+                content: `Título: ${title}. Idea: ${idea}. Genera la historia y la enseñanza de impacto.`
               }
             ]
           };
@@ -56,10 +56,9 @@ jobs:
               if (res.statusCode === 200) {
                 const response = JSON.parse(data);
                 let content = response.choices[0].message.content;
-                // Limpiar JSON si la IA agrega markdown
                 content = content.replace(/```json|```/g, '').trim();
                 fs.writeFileSync('story_expanded.json', content);
-                console.log('✅ Historia expandida con éxito.');
+                console.log('✅ Historia y enseñanza de impacto generadas con éxito.');
               } else {
                 console.error('❌ Error Cerebras:', data);
                 process.exit(1);
@@ -101,9 +100,9 @@ jobs:
           engine = MusiChrisComicEngine()
           bg_song = engine.get_random_bg_music()
           
-          p_paths = engine.forge_panels(story_data)
+          p_paths = engine.forge_panels(story_data['story'])
           if p_paths:
-              engine.render_motion_comic(p_paths, title, bg_song['audio_url'], "final_comic.mp4")
+              engine.render_motion_comic(p_paths, title, bg_song['audio_url'], "final_comic.mp4", story_data)
           EOF
 
       - name: 🟢 Setup Node.js

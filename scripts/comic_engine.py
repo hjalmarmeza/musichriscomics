@@ -227,35 +227,26 @@ class MusiChrisComicEngine:
                 "-map", "[v]", "-t", "6", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(vid_path)
             ], check=True)
             panel_vids.append(str(vid_path))
-        return panel_vids
-
+    def render_motion_comic(self, panel_paths, title, audio_url, output_name, story_data):
+        """Orquesta la producción final de 9 pantallas con fundidos y branding."""
+        print(f"🎬 Iniciando Forja Maestra: {title}")
+        output_path = self.renders_dir / output_name
+        audio_path = self.temp_dir / "bg_music.mp3"
+        outro_path = self.base_dir / "assets/video/outro.mp4"
+        
         intro_path = self.generate_title_video(title)
         
         r = requests.get(audio_url)
         with open(audio_path, "wb") as f: f.write(r.content)
 
-        # 1. Generar video de los PANELES (imágenes)
-        panels_concat_file = self.temp_dir / "panels_only.txt"
-        with open(panels_concat_file, "w") as f:
-            for p in panel_paths:
-                f.write(f"file '{Path(p).absolute()}'\nduration 5\n")
-            f.write(f"file '{Path(panel_paths[-1]).absolute()}'\n")
-
-        panels_video = self.temp_dir / "panels_only.mp4"
-        subprocess.run([
-            "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(panels_concat_file),
-            "-vf", "zoompan=z='min(zoom+0.001,1.5)':d=125:s=1080x1920,format=yuv420p",
-            "-c:v", "libx264", "-pix_fmt", "yuv420p", str(panels_video)
-        ], check=True)
-
         # --- PANTALLA 8: ENSEÑANZA BÍBLICA ---
-        print("📖 Generando Pantalla de Enseñanza...")
+        print("📖 Generando Pantalla de Enseñanza de Impacto...")
         lesson_text = story_data.get('lesson', "Caminemos en fe.")
         ref_text = story_data.get('reference', "")
         
         lesson_vid = self.assets_dir / "teaching_screen.mp4"
-        bg_video = self.project_dir / "public" / "master_teaching_bg.mp4"
-        bg_img = self.project_dir / "public" / "master_teaching_bg.png"
+        bg_video = self.base_dir / "public" / "master_teaching_bg.mp4"
+        bg_img = self.base_dir / "public" / "master_teaching_bg.png"
         
         # Wrap de lección
         l_words = lesson_text.split()
