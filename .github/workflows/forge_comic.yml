@@ -7,6 +7,9 @@ on:
 jobs:
   forge:
     runs-on: ubuntu-latest
+    env:
+      VIDEO_TITLE: "🎨 MusiChris Comic: ${{ github.event.client_payload.title }}"
+      VIDEO_DESCRIPTION: "📖 Historia: ${{ github.event.client_payload.description }}\n\nForjado automáticamente por la IA de MusiChris Studio 🚀"
     steps:
       - name: 📥 Checkout Repository
         uses: actions/checkout@v3
@@ -93,12 +96,14 @@ jobs:
           with open('story_expanded.json', 'r') as f:
               story_data = json.load(f)
           
+          title = os.getenv('VIDEO_TITLE', 'MusiChris Comic').replace('🎨 MusiChris Comic: ', '')
+          
           engine = MusiChrisComicEngine()
           bg_song = engine.get_random_bg_music()
           
           p_paths = engine.forge_panels(story_data)
           if p_paths:
-              engine.render_motion_comic(p_paths, bg_song['audio_url'], "final_comic.mp4")
+              engine.render_motion_comic(p_paths, title, bg_song['audio_url'], "final_comic.mp4")
           EOF
 
       - name: 🟢 Setup Node.js
@@ -113,7 +118,5 @@ jobs:
         env:
           YOUTUBE_CREDENTIALS: ${{ secrets.YOUTUBE_CREDENTIALS }}
           YOUTUBE_TOKEN: ${{ secrets.YOUTUBE_TOKEN }}
-          VIDEO_TITLE: "🎨 MusiChris Comic: ${{ github.event.client_payload.title }}"
-          VIDEO_DESCRIPTION: "📖 Historia: ${{ github.event.client_payload.description }}\n\nForjado automáticamente por la IA de MusiChris Studio 🚀"
         run: |
           node scripts/upload_engine.js renders/final_comic.mp4
