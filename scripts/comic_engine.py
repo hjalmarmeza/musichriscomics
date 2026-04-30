@@ -41,55 +41,40 @@ class MusiChrisComicEngine:
         except Exception:
             return {"audio_url": "https://res.cloudinary.com/dveqs8f3n/video/upload/v1765360897/wi5649ngot0kzi9m7mwu.mp3"}
 
-    def generate_title_card(self, title):
-        """Genera una pantalla inicial standard premium con el fondo maestro"""
-        try:
-            # Usar el fondo maestro generado por la IA
-            canvas = Image.open(self.public_dir / "master_intro_bg.png").convert("RGB")
-        except:
-            canvas = Image.new("RGB", (1080, 1920), (10, 14, 20))
-            
-        draw = ImageDraw.Draw(canvas)
+    def generate_title_video(self, title):
+        """Genera el video inicial animado basado en video_pantalla_inicio.mp4"""
+        input_video = self.public_dir / "video_pantalla_inicio.mp4"
+        output_video = self.assets_dir / "intro_rendered.mp4"
+        font_path = "/System/Library/Fonts/Helvetica.ttc"
         
-        try:
-            logo = Image.open(self.public_dir / "logo_v4.png").convert("RGBA")
-            logo = logo.resize((450, int(450 * logo.height / logo.width)), Image.Resampling.LANCZOS)
-            canvas.paste(logo, ((1080 - 450) // 2, 250), logo)
-        except: pass
+        # Escapar caracteres para FFmpeg drawtext
+        clean_title = title.upper().replace(":", "\\:").replace("'", "")
+        
+        # Dividir titulo en lineas si es muy largo (simple wrap para FFmpeg)
+        words = clean_title.split()
+        line1 = " ".join(words[:len(words)//2])
+        line2 = " ".join(words[len(words)//2:])
+        
+        # Filtro: Ralentizar (x2 -> 8s) + Texto
+        # PTS * 2.0 hace que el video dure el doble
+        filter_str = (
+            f"setpts=2.0*PTS,"
+            f"drawtext=fontfile='{font_path}':text='HISTORIA BÍBLICA':fontcolor=0xFFD700:fontsize=40:x=(w-text_w)/2:y=800:alpha='if(lt(t,1),t,1)',"
+            f"drawtext=fontfile='{font_path}':text='{line1}':fontcolor=white:fontsize=90:x=(w-text_w)/2:y=1000:shadowcolor=black:shadowx=3:shadowy=3:alpha='if(lt(t,1.5),t-0.5,1)',"
+            f"drawtext=fontfile='{font_path}':text='{line2}':fontcolor=white:fontsize=90:x=(w-text_w)/2:y=1120:shadowcolor=black:shadowx=3:shadowy=3:alpha='if(lt(t,2),t-1,1)',"
+            f"drawtext=fontfile='{font_path}':text='MUSICHRIS_STUDIO':fontcolor=0xFFD700:fontsize=55:x=(w-text_w)/2:y=1550:alpha='if(lt(t,2.5),t-1.5,1)',"
+            f"drawtext=fontfile='{font_path}':text='EL ESTÁNDAR DE LA FORJA':fontcolor=white@0.7:fontsize=35:x=(w-text_w)/2:y=1620:alpha='if(lt(t,3),t-2,1)'"
+        )
 
-        try:
-            font_title = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 95)
-            font_brand = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 55)
-            font_sub = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 40)
-        except:
-            font_title = font_brand = font_sub = ImageFont.load_default()
-
-        # Layout solicitado: Titulo al centro, Musichris_Studio centro-abajo
-        draw.text((540, 800), "HISTORIA BÍBLICA", font=font_sub, fill=(255, 215, 0), anchor="mm")
+        cmd = [
+            "ffmpeg", "-y", "-i", str(input_video),
+            "-vf", filter_str,
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
+            str(output_video)
+        ]
         
-        # Wrap de título
-        lines = []
-        words = title.upper().split()
-        curr = ""
-        for w in words:
-            if len(curr + w) < 15: curr += w + " "
-            else: lines.append(curr.strip()); curr = w + " "
-        lines.append(curr.strip())
-        
-        y_title = 1000
-        for line in lines:
-            # Sombra para legibilidad sobre el fondo épico
-            draw.text((543, y_title + 3), line, font=font_title, fill=(0, 0, 0), anchor="mm")
-            draw.text((540, y_title), line, font=font_title, fill=(255, 255, 255), anchor="mm")
-            y_title += 115
-
-        # Marca centro-abajo
-        draw.text((540, 1550), "MUSICHRIS_STUDIO", font=font_brand, fill=(255, 215, 0), anchor="mm")
-        draw.text((540, 1620), "EL ESTÁNDAR DE LA FORJA", font=font_sub, fill=(255, 255, 255, 180), anchor="mm")
-        
-        path = self.assets_dir / "title_card.png"
-        canvas.save(path)
-        return str(path)
+        subprocess.run(cmd, check=True)
+        return str(output_video)
 
     def analyze_best_corner(self, img, box_w, box_h):
         """Analiza la complejidad visual para decidir si poner el texto a la izq o der"""
@@ -187,35 +172,40 @@ class MusiChrisComicEngine:
                 panel_paths.append(str(path))
         return panel_paths
 
-    def render_motion_comic(self, panel_paths, title, audio_url, output_name="comic_final.mp4"):
-        output_path = self.renders_dir / output_name
-        audio_path = self.temp_dir / "bg_music.mp3"
-        outro_path = self.video_assets / "outro.mp4"
+        intro_path = self.generate_title_video(title)
         
-        title_path = self.generate_title_card(title)
-        full_sequence = [title_path] + panel_paths
-
         r = requests.get(audio_url)
         with open(audio_path, "wb") as f: f.write(r.content)
 
-        concat_file = self.temp_dir / "panels.txt"
-        with open(concat_file, "w") as f:
-            for p in full_sequence:
+        # 1. Generar video de los PANELES (imágenes)
+        panels_concat_file = self.temp_dir / "panels_only.txt"
+        with open(panels_concat_file, "w") as f:
+            for p in panel_paths:
                 f.write(f"file '{Path(p).absolute()}'\nduration 5\n")
-            f.write(f"file '{Path(full_sequence[-1]).absolute()}'\n")
+            f.write(f"file '{Path(panel_paths[-1]).absolute()}'\n")
 
-        temp_comic = self.temp_dir / "temp_comic.mp4"
+        panels_video = self.temp_dir / "panels_only.mp4"
         subprocess.run([
-            "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_file),
+            "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(panels_concat_file),
             "-vf", "zoompan=z='min(zoom+0.001,1.5)':d=125:s=1080x1920,format=yuv420p",
-            "-c:v", "libx264", "-pix_fmt", "yuv420p", str(temp_comic)
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", str(panels_video)
         ], check=True)
 
-        comic_duration = len(full_sequence) * 5
+        # 2. Unir INTRO + PANELES
+        sequence_video = self.temp_dir / "intro_and_panels.mp4"
+        subprocess.run([
+            "ffmpeg", "-y", 
+            "-i", str(intro_path), 
+            "-i", str(panels_video),
+            "-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0[v]",
+            "-map", "[v]", "-c:v", "libx264", str(sequence_video)
+        ], check=True)
+
+        comic_duration = 8 + (len(panel_paths) * 5) # 8s intro + paneles
         if outro_path.exists():
             final_cmd = [
                 "ffmpeg", "-y",
-                "-i", str(temp_comic),
+                "-i", str(sequence_video),
                 "-i", str(audio_path),
                 "-i", str(outro_path),
                 "-filter_complex", 
@@ -229,7 +219,7 @@ class MusiChrisComicEngine:
                 "-c:v", "libx264", "-shortest", str(output_path)
             ]
         else:
-            final_cmd = ["ffmpeg", "-y", "-i", str(temp_comic), "-i", str(audio_path), "-c:v", "libx264", "-shortest", str(output_path)]
+            final_cmd = ["ffmpeg", "-y", "-i", str(sequence_video), "-i", str(audio_path), "-c:v", "libx264", "-shortest", str(output_path)]
             
         subprocess.run(final_cmd, check=True)
         print(f"✅ ¡Video Finalizado! {output_path}")
