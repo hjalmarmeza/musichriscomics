@@ -278,10 +278,10 @@ class MusiChrisComicEngine:
         # Cita Bíblica
         l_filters.append(f"drawtext=fontfile='{l_font}':text='{ref_text}':fontcolor=0xFFD700:fontsize=45:x=(w-text_w)/2:y=1200:enable='between(t,1,5.5)'")
         
-        # Si existe el video, lo usamos con slow-mo, si no, fallback a la imagen
+        # Si existe el video, lo usamos con slow-mo (5s -> 6s), si no, fallback a la imagen
         if bg_video.exists():
             ffmpeg_input = ["-i", str(bg_video)]
-            vf_chain = f"setpts=1.5*PTS,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,{','.join(l_filters)}"
+            vf_chain = f"setpts=1.2*PTS,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,{','.join(l_filters)}"
         else:
             ffmpeg_input = ["-loop", "1", "-i", str(bg_img)]
             vf_chain = f"scale=1080:1920,setsar=1,{','.join(l_filters)}"
