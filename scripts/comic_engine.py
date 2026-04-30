@@ -295,6 +295,7 @@ class MusiChrisComicEngine:
 
         comic_duration = 8 + (len(panel_paths) * 5.5) # Duración ajustada por solapes (6s - 0.5s solape)
         if outro_path.exists():
+            font_p = "/System/Library/Fonts/Helvetica.ttc"
             final_cmd = [
                 "ffmpeg", "-y",
                 "-i", str(sequence_video),
@@ -304,6 +305,8 @@ class MusiChrisComicEngine:
                 f"[0:v]fade=t=out:st={comic_duration-1}:d=1[v0]; "
                 f"[2:v]setpts=1.25*PTS,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920, "
                 f"geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(lt(hypot(X-W/2,Y-H/2),H/2.2),255,0)', "
+                f"drawtext=fontfile='{font_p}':text='@MusiChris_Studio':fontcolor=0xFFD700:fontsize=60:x=(w-text_w)/2:y=1400:alpha='if(lt(t,2),t/2,1)', "
+                f"drawtext=fontfile='{font_p}':text='Caminemos Juntos En Fe':fontcolor=white:fontsize=45:x=(w-text_w)/2:y=1480:alpha='if(lt(t,3),t-2,1)', "
                 f"fade=t=in:st=0:d=1[vout]; "
                 f"[v0][vout]concat=n=2:v=1:a=0[v]; "
                 f"[1:a]afade=t=out:st={comic_duration+9}:d=1[a]",
