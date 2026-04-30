@@ -203,45 +203,29 @@ class MusiChrisComicEngine:
             # Crear overlay de la CÁPSULA (Pill Shape) en PIL
             pill_overlay = Image.new('RGBA', (1080, 1920), (0,0,0,0))
             p_draw = ImageDraw.Draw(pill_overlay)
-            # Dibujar rectángulo redondeado (Pill)
             p_draw.rounded_rectangle([pos_x, pos_y, pos_x + box_w, pos_y + box_h], radius=box_h//2, fill=(0, 0, 0, 190))
-            
-            # Guardar overlay temporal
             pill_path = self.temp_dir / f"pill_{i}.png"
             pill_overlay.save(pill_path)
             
-            # Generar video individual con Zoom + Cápsula + Texto + Bullet
             vid_path = self.assets_dir / f"panel_vid_{i}.mp4"
-            
             drawtext_filters = []
-            # Agregar Bullet Dorado
             drawtext_filters.append(
                 f"drawtext=fontfile='{font_path}':text='•':fontcolor=0xFFD700:fontsize=60:x={pos_x+padding}:y={pos_y+padding-10}:enable='between(t,0.5,5)'"
             )
-            
             for j, line in enumerate(lines):
                 line_clean = line.replace("'", "").replace(":", "\\:")
-                x_off = pos_x + padding + 40 # Espacio para el bullet
+                x_off = pos_x + padding + 40
                 drawtext_filters.append(
                     f"drawtext=fontfile='{font_path}':text='{line_clean}':fontcolor=white:fontsize={font_size}:x={x_off}:y={pos_y+padding+(j*60)}:enable='between(t,0.5,5)'"
                 )
             
-            # Filtro: Zoom + Overlay de Cápsula + Textos
-            filters = [
-                f"zoompan=z='min(zoom+0.001,1.5)':d=150:s=1080x1920", # 150 frames = 5s @ 30fps? No, d=180 para 6s
-                f"overlay=enable='between(t,0.5,5)'"
-            ]
-            
-            # Re-ajustar d para 6 segundos @ 25fps o 30fps. Usaremos 30fps -> d=180
             zoom_filter = f"zoompan=z='min(zoom+0.001,1.5)':d=180:s=1080x1920"
-            
             subprocess.run([
                 "ffmpeg", "-y", "-loop", "1", "-i", str(img_path),
                 "-i", str(pill_path),
                 "-filter_complex", f"[0:v]{zoom_filter}[z]; [z][1:v]overlay=enable='between(t,0.5,5)'[o]; [o]{','.join(drawtext_filters)}[v]",
                 "-map", "[v]", "-t", "6", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(vid_path)
             ], check=True)
-            
             panel_vids.append(str(vid_path))
         return panel_vids
 
@@ -264,23 +248,54 @@ class MusiChrisComicEngine:
             "-c:v", "libx264", "-pix_fmt", "yuv420p", str(panels_video)
         ], check=True)
 
-        # 2. Unir INTRO + PANELES con XFADE (0.5s)
-        # Usamos filter_complex para encadenar xfades
-        # Intro(8s) + P1(5s) + P2(5s)... 
-        # Cada xfade reduce 0.5s la duración total
-        vids = [intro_path] + panel_paths
+        # --- PANTALLA 8: ENSEÑANZA BÍBLICA ---
+        print("📖 Generando Pantalla de Enseñanza...")
+        lesson_text = story_data.get('lesson', "Caminemos en fe.")
+        ref_text = story_data.get('reference', "")
+        
+        lesson_vid = self.assets_dir / "teaching_screen.mp4"
+        bg_intro = self.project_dir / "public" / "master_intro_bg.png"
+        
+        # Wrap de lección
+        l_words = lesson_text.split()
+        l_lines = []
+        curr = ""
+        for w in l_words:
+            if len(curr + w) < 25: curr += w + " "
+            else: l_lines.append(curr.strip()); curr = w + " "
+        l_lines.append(curr.strip())
+        
+        l_font = "/System/Library/Fonts/Helvetica.ttc"
+        l_filters = []
+        # Título "Enseñanza"
+        l_filters.append(f"drawtext=fontfile='{l_font}':text='ENERO DE FE':fontcolor=0xFFD700:fontsize=50:x=(w-text_w)/2:y=600:enable='between(t,0.5,5.5)'")
+        
+        # Líneas de lección
+        for idx, line in enumerate(l_lines):
+            l_filters.append(f"drawtext=fontfile='{l_font}':text='{line}':fontcolor=white:fontsize=55:x=(w-text_w)/2:y=800+({idx}*70):enable='between(t,0.5,5.5)'")
+            
+        # Cita Bíblica
+        l_filters.append(f"drawtext=fontfile='{l_font}':text='{ref_text}':fontcolor=0xFFD700:fontsize=45:x=(w-text_w)/2:y=1200:enable='between(t,1,5.5)'")
+        
+        subprocess.run([
+            "ffmpeg", "-y", "-loop", "1", "-i", str(bg_intro),
+            "-vf", f"scale=1080:1920,setsar=1,{','.join(l_filters)}",
+            "-t", "6", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(lesson_vid)
+        ], check=True)
+
+        # 2. Unir TODO (Intro + 6 Paneles + Enseñanza) con XFADE (0.5s)
+        vids = [intro_path] + panel_paths + [str(lesson_vid)]
         filter_complex = ""
         last_out = "[v0]"
-        # Pre-preparar los inputs para el filter_complex
         for i in range(len(vids)):
             filter_complex += f"[{i}:v]settb=AVTB,setpts=PTS-STARTPTS[v{i}];"
         
-        offset = 7.5 # Intro termina en 8s, xfade de 0.5s empieza en 7.5s
+        offset = 7.5 
         for i in range(1, len(vids)):
             next_out = f"cx{i}"
             filter_complex += f"{last_out}[v{i}]xfade=transition=fade:duration=0.5:offset={offset}[{next_out}];"
             last_out = f"[{next_out}]"
-            offset += 5.5 # Cada panel dura 6s, con solape de 0.5s, el offset avanza 5.5s
+            offset += 5.5
             
         final_input_args = []
         for v in vids:
@@ -293,7 +308,7 @@ class MusiChrisComicEngine:
             "-map", last_out, "-c:v", "libx264", str(sequence_video)
         ], check=True)
 
-        comic_duration = 8 + (len(panel_paths) * 5.5) # Duración ajustada por solapes (6s - 0.5s solape)
+        comic_duration = 8 + (len(panel_paths) * 5.5) + 5.5 # +1 panel de enseñanza
         if outro_path.exists():
             font_p = "/System/Library/Fonts/Helvetica.ttc"
             final_cmd = [
