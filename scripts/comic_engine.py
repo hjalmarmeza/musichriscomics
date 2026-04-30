@@ -50,19 +50,23 @@ class MusiChrisComicEngine:
         # Escapar caracteres para FFmpeg drawtext
         clean_title = title.upper().replace(":", "\\:").replace("'", "")
         
-        # Dividir titulo en lineas si es muy largo (simple wrap para FFmpeg)
+        # Lógica de líneas dinámica: Si es corto, 1 línea. Si es largo, 2.
         words = clean_title.split()
-        line1 = " ".join(words[:len(words)//2])
-        line2 = " ".join(words[len(words)//2:])
+        if len(clean_title) < 20:
+            line1, line2 = clean_title, ""
+        else:
+            mid = len(words) // 2
+            line1, line2 = " ".join(words[:mid]), " ".join(words[mid:])
         
-        # Filtro: Ralentizar (x2 -> 8s) + Texto
-        # Título arriba (y=350), Branding abajo (y=1550)
+        # Filtro: Ralentizar + Fades + Texto
+        # Título arriba (y=350), Branding DEBAJO del pergamino (y=1400) para evitar UI YouTube
+        # Fade In al inicio (t,0,1) y Fade Out al final (t,7,1)
         filter_str = (
-            f"setpts=2.0*PTS,"
-            f"drawtext=fontfile='{font_path}':text='{line1}':fontcolor=white:fontsize=95:x=(w-text_w)/2:y=350:shadowcolor=black:shadowx=4:shadowy=4:alpha='if(lt(t,1),t,1)',"
+            f"setpts=2.0*PTS,fade=t=in:st=0:d=1,fade=t=out:st=7:d=1,"
+            f"drawtext=fontfile='{font_path}':text='{line1}':fontcolor=white:fontsize=95:x=(w-text_w)/2:y=350:shadowcolor=black:shadowx=4:shadowy=4:alpha='if(lt(t,1.5),t-0.5,1)',"
             f"drawtext=fontfile='{font_path}':text='{line2}':fontcolor=white:fontsize=95:x=(w-text_w)/2:y=470:shadowcolor=black:shadowx=4:shadowy=4:alpha='if(lt(t,1.5),t-0.5,1)',"
-            f"drawtext=fontfile='{font_path}':text='MUSICHRIS_STUDIO':fontcolor=0xFFD700:fontsize=60:x=(w-text_w)/2:y=1550:alpha='if(lt(t,2.5),t-1.5,1)',"
-            f"drawtext=fontfile='{font_path}':text='EL ESTÁNDAR DE LA FORJA':fontcolor=white@0.8:fontsize=38:x=(w-text_w)/2:y=1630:alpha='if(lt(t,3),t-2,1)'"
+            f"drawtext=fontfile='{font_path}':text='MUSICHRIS_STUDIO':fontcolor=0xFFD700:fontsize=60:x=(w-text_w)/2:y=1400:alpha='if(lt(t,2.5),t-1.5,1)',"
+            f"drawtext=fontfile='{font_path}':text='EL ESTÁNDAR DE LA FORJA':fontcolor=white@0.8:fontsize=38:x=(w-text_w)/2:y=1480:alpha='if(lt(t,3),t-2,1)'"
         )
 
         cmd = [
