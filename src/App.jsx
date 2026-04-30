@@ -125,7 +125,7 @@ function App() {
       </main>
 
       <footer className="footer-comic" style={{ padding: '20px', textAlign: 'center', fontSize: '0.7rem', opacity: 0.6, letterSpacing: '2px' }}>
-         IA MINISTERIAL v1.0 • 8 PANTALLAS • 4K
+         IA MINISTERIAL v1.0 • 9 PANTALLAS • 4K
       </footer>
     </div>
   );
