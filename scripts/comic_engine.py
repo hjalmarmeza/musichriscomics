@@ -57,16 +57,17 @@ class MusiChrisComicEngine:
         
         draw = ImageDraw.Draw(canvas)
         
-        # Caja de texto premium al fondo
-        rect_height = 250
-        draw.rectangle([0, 1920 - rect_height, 1080, 1920], fill=(0, 86, 179)) # Azul MusiChris
+        # Caja de texto premium en la parte superior (Overlay)
+        # Dibujamos un rectángulo semi-transparente para legibilidad
+        padding = 40
+        rect_margin = 20
         
         try:
             font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 45)
         except:
             font = ImageFont.load_default()
             
-        # Wrap text manual para que no se salga
+        # Wrap text manual
         lines = []
         words = text.split()
         current_line = ""
@@ -78,11 +79,24 @@ class MusiChrisComicEngine:
                 current_line = word + " "
         lines.append(current_line.strip())
         
-        y_text = 1920 - rect_height + 40
+        # Calcular tamaño de la caja de texto
+        max_line_width = 0
         for line in lines:
             bbox = draw.textbbox((0, 0), line, font=font)
-            line_w = bbox[2] - bbox[0]
-            draw.text(((1080 - line_w) / 2, y_text), line, font=font, fill=(255, 215, 0)) # Oro
+            max_line_width = max(max_line_width, bbox[2] - bbox[0])
+        
+        box_w = max_line_width + (padding * 2)
+        box_h = (len(lines) * 60) + (padding)
+        
+        # Dibujar fondo de texto (Oscuro semi-transparente)
+        overlay = Image.new('RGBA', (1080, 1920), (0,0,0,0))
+        overlay_draw = ImageDraw.Draw(overlay)
+        overlay_draw.rectangle([rect_margin, rect_margin, rect_margin + box_w, rect_margin + box_h], fill=(0, 0, 0, 180))
+        canvas.paste(overlay, (0,0), overlay)
+        
+        y_text = rect_margin + 30
+        for line in lines:
+            draw.text((rect_margin + padding, y_text), line, font=font, fill=(255, 215, 0)) # Oro
             y_text += 60
             
         output = BytesIO()
