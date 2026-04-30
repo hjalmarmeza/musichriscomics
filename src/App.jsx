@@ -78,7 +78,6 @@ function App() {
         <div className="splash-content fade-in">
           <img src="logo_v4.png" alt="Logo" className="pulse-logo" style={{ width: '220px' }} />
           <h1 className="splash-title">MUSICHRIS</h1>
-          <p className="splash-subtitle">COMIC ENGINE • 9 PANTALLAS</p>
           <div className="tap-to-start">TOCA PARA ENTRAR AL SISTEMA</div>
         </div>
       </div>
