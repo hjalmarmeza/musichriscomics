@@ -157,7 +157,7 @@ class MusiChrisComicEngine:
         subprocess.run(cmd_zoom, check=True)
 
         # Paso 2: Mezclar con Audio y añadir Outro
-        # Si el outro existe, lo concatenamos
+        comic_duration = len(panel_paths) * 5
         if outro_path.exists():
             final_cmd = [
                 "ffmpeg", "-y",
@@ -165,7 +165,10 @@ class MusiChrisComicEngine:
                 "-i", str(audio_path),
                 "-i", str(outro_path),
                 "-filter_complex", 
-                "[0:v]fade=t=out:st=24:d=1[v0]; [2:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fade=t=in:st=0:d=1[vout]; [v0][vout]concat=n=2:v=1:a=0[v]; [1:a]afade=t=out:st=24:d=1[a]",
+                f"[0:v]fade=t=out:st={comic_duration-1}:d=1[v0]; "
+                f"[2:v]setpts=1.25*PTS,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fade=t=in:st=0:d=1[vout]; "
+                f"[v0][vout]concat=n=2:v=1:a=0[v]; "
+                f"[1:a]afade=t=out:st={comic_duration+9}:d=1[a]",
                 "-map", "[v]", "-map", "[a]",
                 "-c:v", "libx264", "-shortest", str(output_path)
             ]
