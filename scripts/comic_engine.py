@@ -195,33 +195,51 @@ class MusiChrisComicEngine:
                 else: lines.append(curr.strip()); curr = w + " "
             lines.append(curr.strip())
             
-            # Medir caja (simplificado para FFmpeg)
-            box_w = 700 
-            box_h = (len(lines) * 60) + padding
+            # Medir caja para Cápsula (Pill)
+            box_w = 750
+            box_h = (len(lines) * 60) + (padding * 1.5)
             pos_x, pos_y = self.analyze_best_corner(canvas, box_w, box_h)
             
-            # Generar video individual con Zoom + Texto Temporizado (0.5s a 4s)
+            # Crear overlay de la CÁPSULA (Pill Shape) en PIL
+            pill_overlay = Image.new('RGBA', (1080, 1920), (0,0,0,0))
+            p_draw = ImageDraw.Draw(pill_overlay)
+            # Dibujar rectángulo redondeado (Pill)
+            p_draw.rounded_rectangle([pos_x, pos_y, pos_x + box_w, pos_y + box_h], radius=box_h//2, fill=(0, 0, 0, 190))
+            
+            # Guardar overlay temporal
+            pill_path = self.temp_dir / f"pill_{i}.png"
+            pill_overlay.save(pill_path)
+            
+            # Generar video individual con Zoom + Cápsula + Texto + Bullet
             vid_path = self.assets_dir / f"panel_vid_{i}.mp4"
             
             drawtext_filters = []
+            # Agregar Bullet Dorado
+            drawtext_filters.append(
+                f"drawtext=fontfile='{font_path}':text='•':fontcolor=0xFFD700:fontsize=60:x={pos_x+padding}:y={pos_y+padding-10}:enable='between(t,0.5,5)'"
+            )
+            
             for j, line in enumerate(lines):
                 line_clean = line.replace("'", "").replace(":", "\\:")
+                x_off = pos_x + padding + 40 # Espacio para el bullet
                 drawtext_filters.append(
-                    f"drawtext=fontfile='{font_path}':text='{line_clean}':fontcolor=0xFFD700:fontsize={font_size}:x={pos_x+padding}:y={pos_y+30+(j*60)}:enable='between(t,0.5,4)'"
+                    f"drawtext=fontfile='{font_path}':text='{line_clean}':fontcolor=white:fontsize={font_size}:x={x_off}:y={pos_y+padding+(j*60)}:enable='between(t,0.5,5)'"
                 )
             
-            # Drawbox para el recuadro premium
-            drawbox_filter = f"drawbox=x={pos_x}:y={pos_y}:w={box_w}:h={box_h}:color=black@0.7:t=fill:enable='between(t,0.5,4)'"
-            
+            # Filtro: Zoom + Overlay de Cápsula + Textos
             filters = [
-                f"zoompan=z='min(zoom+0.001,1.5)':d=125:s=1080x1920",
-                drawbox_filter
-            ] + drawtext_filters
+                f"zoompan=z='min(zoom+0.001,1.5)':d=150:s=1080x1920", # 150 frames = 5s @ 30fps? No, d=180 para 6s
+                f"overlay=enable='between(t,0.5,5)'"
+            ]
+            
+            # Re-ajustar d para 6 segundos @ 25fps o 30fps. Usaremos 30fps -> d=180
+            zoom_filter = f"zoompan=z='min(zoom+0.001,1.5)':d=180:s=1080x1920"
             
             subprocess.run([
                 "ffmpeg", "-y", "-loop", "1", "-i", str(img_path),
-                "-vf", ",".join(filters),
-                "-t", "5", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(vid_path)
+                "-i", str(pill_path),
+                "-filter_complex", f"[0:v]{zoom_filter}[z]; [z][1:v]overlay=enable='between(t,0.5,5)'[o]; [o]{','.join(drawtext_filters)}[v]",
+                "-map", "[v]", "-t", "6", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(vid_path)
             ], check=True)
             
             panel_vids.append(str(vid_path))
@@ -262,7 +280,7 @@ class MusiChrisComicEngine:
             next_out = f"cx{i}"
             filter_complex += f"{last_out}[v{i}]xfade=transition=fade:duration=0.5:offset={offset}[{next_out}];"
             last_out = f"[{next_out}]"
-            offset += 4.5 # Cada panel dura 5s, pero con solape de 0.5s, el offset avanza 4.5s
+            offset += 5.5 # Cada panel dura 6s, con solape de 0.5s, el offset avanza 5.5s
             
         final_input_args = []
         for v in vids:
@@ -275,7 +293,7 @@ class MusiChrisComicEngine:
             "-map", last_out, "-c:v", "libx264", str(sequence_video)
         ], check=True)
 
-        comic_duration = 8 + (len(panel_paths) * 4.5) # Duración ajustada por solapes
+        comic_duration = 8 + (len(panel_paths) * 5.5) # Duración ajustada por solapes (6s - 0.5s solape)
         if outro_path.exists():
             final_cmd = [
                 "ffmpeg", "-y",
