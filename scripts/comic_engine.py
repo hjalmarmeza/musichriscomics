@@ -24,7 +24,7 @@ class MusiChrisComicEngine:
         self.assets_dir = self.base_dir / "assets/panels"
         self.renders_dir = self.base_dir / "renders"
         self.temp_dir = self.base_dir / "temp"
-        self.catalog_path = Path("/Users/hjalmarmeza/Downloads/Antigravity/PROYECTOS_FINALIZADOS/Musichris_Atmos/data/musichris_master_catalog.json")
+        self.catalog_path = self.base_dir / "data/catalog.json"
         
         for d in [self.assets_dir, self.renders_dir, self.temp_dir]:
             d.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,65 @@
+name: 🎨 MusiChris Comic Forge
+
+on:
+  repository_dispatch:
+    types: [forge_comic]
+
+jobs:
+  forge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: 📦 Install Python Dependencies
+        run: |
+          pip install huggingface_hub Pillow requests python-dotenv
+
+      - name: 🎥 Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: 🎨 Forging Comic Panels & Video
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          STORY_JSON: ${{ github.event.client_payload.story }}
+        run: |
+          python3 << 'EOF'
+          import os
+          import json
+          from scripts.comic_engine import MusiChrisComicEngine
+          
+          # Cargar historia desde el payload
+          story_data = json.loads(os.getenv('STORY_JSON'))
+          
+          engine = MusiChrisComicEngine()
+          bg_song = engine.get_random_bg_music()
+          print(f"🎵 Música seleccionada: {bg_song['audio_url']}")
+          
+          p_paths = engine.forge_panels(story_data)
+          if p_paths:
+              engine.render_motion_comic(p_paths, bg_song['audio_url'], "final_comic.mp4")
+          EOF
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: 📦 Install Node Dependencies
+        run: npm install googleapis
+
+      - name: ☁️ Upload to YouTube
+        env:
+          YOUTUBE_CREDENTIALS: ${{ secrets.YOUTUBE_CREDENTIALS }}
+          YOUTUBE_TOKEN: ${{ secrets.YOUTUBE_TOKEN }}
+          VIDEO_TITLE: "🎨 MusiChris Comic: ${{ github.event.client_payload.title }}"
+          VIDEO_DESCRIPTION: "📖 Historia: ${{ github.event.client_payload.description }}\n\nForjado con MusiChris Comic Engine 🚀"
+        run: |
+          node scripts/upload_engine.js renders/final_comic.mp4
