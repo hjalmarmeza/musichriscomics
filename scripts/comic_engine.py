@@ -254,7 +254,7 @@ class MusiChrisComicEngine:
         ref_text = story_data.get('reference', "")
         
         lesson_vid = self.assets_dir / "teaching_screen.mp4"
-        bg_intro = self.project_dir / "public" / "master_intro_bg.png"
+        bg_teaching = self.project_dir / "public" / "master_teaching_bg.png"
         
         # Wrap de lección
         l_words = lesson_text.split()
@@ -268,17 +268,17 @@ class MusiChrisComicEngine:
         l_font = "/System/Library/Fonts/Helvetica.ttc"
         l_filters = []
         # Título "Enseñanza"
-        l_filters.append(f"drawtext=fontfile='{l_font}':text='ENERO DE FE':fontcolor=0xFFD700:fontsize=50:x=(w-text_w)/2:y=600:enable='between(t,0.5,5.5)'")
+        l_filters.append(f"drawtext=fontfile='{l_font}':text='ENERO DE FE':fontcolor=0xFFD700:fontsize=50:x=(w-text_w)/2:y=500:enable='between(t,0.5,5.5)'")
         
         # Líneas de lección
         for idx, line in enumerate(l_lines):
-            l_filters.append(f"drawtext=fontfile='{l_font}':text='{line}':fontcolor=white:fontsize=55:x=(w-text_w)/2:y=800+({idx}*70):enable='between(t,0.5,5.5)'")
+            l_filters.append(f"drawtext=fontfile='{l_font}':text='{line}':fontcolor=white:fontsize=55:x=(w-text_w)/2:y=700+({idx}*70):enable='between(t,0.5,5.5)'")
             
         # Cita Bíblica
         l_filters.append(f"drawtext=fontfile='{l_font}':text='{ref_text}':fontcolor=0xFFD700:fontsize=45:x=(w-text_w)/2:y=1200:enable='between(t,1,5.5)'")
         
         subprocess.run([
-            "ffmpeg", "-y", "-loop", "1", "-i", str(bg_intro),
+            "ffmpeg", "-y", "-loop", "1", "-i", str(bg_teaching),
             "-vf", f"scale=1080:1920,setsar=1,{','.join(l_filters)}",
             "-t", "6", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(lesson_vid)
         ], check=True)
