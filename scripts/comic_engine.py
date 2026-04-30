@@ -42,27 +42,32 @@ class MusiChrisComicEngine:
             return {"audio_url": "https://res.cloudinary.com/dveqs8f3n/video/upload/v1765360897/wi5649ngot0kzi9m7mwu.mp3"}
 
     def generate_title_card(self, title):
-        """Genera una pantalla inicial standard premium"""
-        canvas = Image.new("RGB", (1080, 1920), (10, 14, 20))
+        """Genera una pantalla inicial standard premium con el fondo maestro"""
+        try:
+            # Usar el fondo maestro generado por la IA
+            canvas = Image.open(self.public_dir / "master_intro_bg.png").convert("RGB")
+        except:
+            canvas = Image.new("RGB", (1080, 1920), (10, 14, 20))
+            
         draw = ImageDraw.Draw(canvas)
         
         try:
             logo = Image.open(self.public_dir / "logo_v4.png").convert("RGBA")
-            logo = logo.resize((500, int(500 * logo.height / logo.width)), Image.Resampling.LANCZOS)
-            canvas.paste(logo, ((1080 - 500) // 2, 300), logo)
+            logo = logo.resize((450, int(450 * logo.height / logo.width)), Image.Resampling.LANCZOS)
+            canvas.paste(logo, ((1080 - 450) // 2, 250), logo)
         except: pass
 
         try:
-            font_title = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 90)
-            font_brand = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 50)
-            font_sub = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 35)
+            font_title = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 95)
+            font_brand = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 55)
+            font_sub = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 40)
         except:
             font_title = font_brand = font_sub = ImageFont.load_default()
 
         # Layout solicitado: Titulo al centro, Musichris_Studio centro-abajo
-        draw.text((540, 850), "HISTORIA BÍBLICA", font=font_sub, fill=(255, 215, 0), anchor="mm")
+        draw.text((540, 800), "HISTORIA BÍBLICA", font=font_sub, fill=(255, 215, 0), anchor="mm")
         
-        # Wrap de título si es largo
+        # Wrap de título
         lines = []
         words = title.upper().split()
         curr = ""
@@ -73,12 +78,14 @@ class MusiChrisComicEngine:
         
         y_title = 1000
         for line in lines:
+            # Sombra para legibilidad sobre el fondo épico
+            draw.text((543, y_title + 3), line, font=font_title, fill=(0, 0, 0), anchor="mm")
             draw.text((540, y_title), line, font=font_title, fill=(255, 255, 255), anchor="mm")
-            y_title += 110
+            y_title += 115
 
-        # Marca centro-abajo (no al final)
-        draw.text((540, 1600), "MUSICHRIS_STUDIO", font=font_brand, fill=(255, 215, 0), anchor="mm")
-        draw.text((540, 1670), "PRODUCCIÓN CLOUD IA", font=font_sub, fill=(255, 255, 255, 150), anchor="mm")
+        # Marca centro-abajo
+        draw.text((540, 1550), "MUSICHRIS_STUDIO", font=font_brand, fill=(255, 215, 0), anchor="mm")
+        draw.text((540, 1620), "EL ESTÁNDAR DE LA FORJA", font=font_sub, fill=(255, 255, 255, 180), anchor="mm")
         
         path = self.assets_dir / "title_card.png"
         canvas.save(path)

@@ -22,12 +22,12 @@ function App() {
     }
 
     if (!storyTitle || !storyIdea) {
-      alert('Por favor, llena ambos campos para forjar la historia.');
+      alert('Por favor, llena ambos campos.');
       return;
     }
 
     setIsForging(true);
-    setStatus('🧠 IA ANALIZANDO ESPACIOS VACÍOS...');
+    setStatus('🧠 ACTIVANDO MASTER FORGE IA...');
 
     try {
       const response = await fetch(`https://api.github.com/repos/${GH_REPO}/dispatches`, {
@@ -47,18 +47,18 @@ function App() {
       });
 
       if (response.ok) {
-        setStatus('✅ ¡FORJA ENVIADA CON ÉXITO!');
+        setStatus('✅ ¡FORJA ENVIADA!');
         setTimeout(() => {
           setIsForging(false);
           setStoryTitle('');
           setStoryIdea('');
           setShowSplash(true);
-        }, 5000);
+        }, 4000);
       } else {
-        throw new Error('Error');
+        throw new Error();
       }
     } catch (err) {
-      setStatus('❌ ERROR EN LA CONEXIÓN');
+      setStatus('❌ ERROR DE CONEXIÓN');
       setIsForging(false);
     }
   };
@@ -66,11 +66,12 @@ function App() {
   if (showSplash) {
     return (
       <div className="splash-screen" onClick={() => setShowSplash(false)}>
+        <div className="splash-overlay"></div>
         <div className="splash-content">
-          <img src="logo_v4.png" alt="Logo" className="pulse-logo" />
+          <img src="logo_v4.png" alt="Logo" className="pulse-logo" style={{ width: '180px' }} />
           <h1 className="splash-title">MUSICHRIS COMIC</h1>
-          <p className="splash-subtitle">ESTÁNDAR DE PRODUCCIÓN BÍBLICA</p>
-          <div className="tap-to-start">TOCA PARA INICIAR LA FORJA</div>
+          <p className="splash-subtitle">EL ESTÁNDAR DE LA FORJA</p>
+          <div className="tap-to-start">TOCA PARA INICIAR</div>
         </div>
       </div>
     );
@@ -86,25 +87,25 @@ function App() {
       <main className="glass-card">
         {!isForging ? (
           <>
-            <div className="forge-header">
-              <h2>NUEVA HISTORIA</h2>
-              <p>La IA detectará automáticamente dónde colocar el texto.</p>
+            <div className="forge-header" style={{ textAlign: 'center', marginBottom: '30px' }}>
+              <h2 style={{ fontSize: '2.2rem', color: 'white' }}>NUEVA HISTORIA</h2>
+              <div style={{ height: '2px', background: 'var(--comic-gold)', width: '50px', margin: '10px auto' }}></div>
             </div>
             
             <div className="input-group">
-              <label className="label-comic">Título del Video</label>
+              <label className="label-comic">Título de la Producción</label>
               <input 
                 type="text"
-                placeholder="Ej: Daniel en el Pozo"
+                placeholder="Ej: David y Goliat"
                 value={storyTitle}
                 onChange={(e) => setStoryTitle(e.target.value)}
                 className="input-comic"
               />
               
-              <label className="label-comic" style={{ marginTop: '20px' }}>Idea Principal (Rápido)</label>
+              <label className="label-comic">Idea Central (IA Expandirá esto)</label>
               <textarea 
-                rows="3" 
-                placeholder="Daniel es arrojado a los leones pero Dios cierra sus bocas."
+                rows="4" 
+                placeholder="Describe la idea principal aquí..."
                 value={storyIdea}
                 onChange={(e) => setStoryIdea(e.target.value)}
                 className="input-comic"
@@ -112,7 +113,7 @@ function App() {
             </div>
 
             <button className="forge-btn-premium" onClick={triggerForgeAction}>
-              FORJAR PRODUCCIÓN
+              FORJAR VIDEO
             </button>
           </>
         ) : (
@@ -123,8 +124,8 @@ function App() {
         )}
       </main>
 
-      <footer className="footer-comic">
-         <span>8 PANTALLAS</span> | <span>AUTO-OUTRO 10S</span>
+      <footer className="footer-comic" style={{ padding: '20px', textAlign: 'center', fontSize: '0.7rem', opacity: 0.6, letterSpacing: '2px' }}>
+         IA MINISTERIAL v1.0 • 8 PANTALLAS • 4K
       </footer>
     </div>
   );
