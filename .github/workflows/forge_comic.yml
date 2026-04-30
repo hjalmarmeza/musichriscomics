@@ -11,36 +11,90 @@ jobs:
       - name: 📥 Checkout Repository
         uses: actions/checkout@v3
 
+      - name: 🧠 AI Story Expansion (Master Forge)
+        env:
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+        run: |
+          node << 'EOF'
+          const https = require('https');
+          const fs = require('fs');
+
+          const title = `${{ github.event.client_payload.title }}`;
+          const idea = `${{ github.event.client_payload.description }}`;
+
+          const payload = {
+            model: 'llama3.1-70b',
+            messages: [
+              {
+                role: 'system', 
+                content: 'Eres el Guionista Maestro de MusiChris Comic. Tu tarea es expandir una idea simple en un guion de cómic de 6 paneles. REGLAS: Responde ÚNICAMENTE con un JSON válido que sea una lista de 6 objetos. Cada objeto debe tener: "prompt" (un prompt detallado en INGLÉS para generación de imagen estilo cómic digital, sin burbujas de texto) y "text" (una frase narrativa corta y poderosa en ESPAÑOL de máximo 12 palabras para quemar en la imagen). Estilo: Épico, Ministerial, Cinematic.'
+              },
+              {
+                role: 'user', 
+                content: `Título: ${title}. Idea: ${idea}. Genera los 6 paneles.`
+              }
+            ]
+          };
+
+          const options = {
+            hostname: 'api.cerebras.ai',
+            path: '/v1/chat/completions',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + process.env.CEREBRAS_API_KEY
+            }
+          };
+
+          const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', (chunk) => data += chunk);
+            res.on('end', () => {
+              if (res.statusCode === 200) {
+                const response = JSON.parse(data);
+                let content = response.choices[0].message.content;
+                // Limpiar JSON si la IA agrega markdown
+                content = content.replace(/```json|```/g, '').trim();
+                fs.writeFileSync('story_expanded.json', content);
+                console.log('✅ Historia expandida con éxito.');
+              } else {
+                console.error('❌ Error Cerebras:', data);
+                process.exit(1);
+              }
+            });
+          });
+          req.on('error', (e) => { console.error(e); process.exit(1); });
+          req.write(JSON.stringify(payload));
+          req.end();
+          EOF
+
       - name: 🐍 Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
       - name: 📦 Install Python Dependencies
-        run: |
-          pip install huggingface_hub Pillow requests python-dotenv
+        run: pip install huggingface_hub Pillow requests python-dotenv
 
       - name: 🎥 Install FFmpeg
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
 
-      - name: 🎨 Forging Comic Panels & Video
+      - name: 🎨 Forging Panels & Video
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          STORY_JSON: ${{ github.event.client_payload.story }}
         run: |
           python3 << 'EOF'
           import os
           import json
           from scripts.comic_engine import MusiChrisComicEngine
           
-          # Cargar historia desde el payload
-          story_data = json.loads(os.getenv('STORY_JSON'))
+          with open('story_expanded.json', 'r') as f:
+              story_data = json.load(f)
           
           engine = MusiChrisComicEngine()
           bg_song = engine.get_random_bg_music()
-          print(f"🎵 Música seleccionada: {bg_song['audio_url']}")
           
           p_paths = engine.forge_panels(story_data)
           if p_paths:
@@ -60,6 +114,6 @@ jobs:
           YOUTUBE_CREDENTIALS: ${{ secrets.YOUTUBE_CREDENTIALS }}
           YOUTUBE_TOKEN: ${{ secrets.YOUTUBE_TOKEN }}
           VIDEO_TITLE: "🎨 MusiChris Comic: ${{ github.event.client_payload.title }}"
-          VIDEO_DESCRIPTION: "📖 Historia: ${{ github.event.client_payload.description }}\n\nForjado con MusiChris Comic Engine 🚀"
+          VIDEO_DESCRIPTION: "📖 Historia: ${{ github.event.client_payload.description }}\n\nForjado automáticamente por la IA de MusiChris Studio 🚀"
         run: |
           node scripts/upload_engine.js renders/final_comic.mp4
