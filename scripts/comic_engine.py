@@ -56,14 +56,13 @@ class MusiChrisComicEngine:
         line2 = " ".join(words[len(words)//2:])
         
         # Filtro: Ralentizar (x2 -> 8s) + Texto
-        # PTS * 2.0 hace que el video dure el doble
+        # Título arriba (y=350), Branding abajo (y=1550)
         filter_str = (
             f"setpts=2.0*PTS,"
-            f"drawtext=fontfile='{font_path}':text='HISTORIA BÍBLICA':fontcolor=0xFFD700:fontsize=40:x=(w-text_w)/2:y=800:alpha='if(lt(t,1),t,1)',"
-            f"drawtext=fontfile='{font_path}':text='{line1}':fontcolor=white:fontsize=90:x=(w-text_w)/2:y=1000:shadowcolor=black:shadowx=3:shadowy=3:alpha='if(lt(t,1.5),t-0.5,1)',"
-            f"drawtext=fontfile='{font_path}':text='{line2}':fontcolor=white:fontsize=90:x=(w-text_w)/2:y=1120:shadowcolor=black:shadowx=3:shadowy=3:alpha='if(lt(t,2),t-1,1)',"
-            f"drawtext=fontfile='{font_path}':text='MUSICHRIS_STUDIO':fontcolor=0xFFD700:fontsize=55:x=(w-text_w)/2:y=1550:alpha='if(lt(t,2.5),t-1.5,1)',"
-            f"drawtext=fontfile='{font_path}':text='EL ESTÁNDAR DE LA FORJA':fontcolor=white@0.7:fontsize=35:x=(w-text_w)/2:y=1620:alpha='if(lt(t,3),t-2,1)'"
+            f"drawtext=fontfile='{font_path}':text='{line1}':fontcolor=white:fontsize=95:x=(w-text_w)/2:y=350:shadowcolor=black:shadowx=4:shadowy=4:alpha='if(lt(t,1),t,1)',"
+            f"drawtext=fontfile='{font_path}':text='{line2}':fontcolor=white:fontsize=95:x=(w-text_w)/2:y=470:shadowcolor=black:shadowx=4:shadowy=4:alpha='if(lt(t,1.5),t-0.5,1)',"
+            f"drawtext=fontfile='{font_path}':text='MUSICHRIS_STUDIO':fontcolor=0xFFD700:fontsize=60:x=(w-text_w)/2:y=1550:alpha='if(lt(t,2.5),t-1.5,1)',"
+            f"drawtext=fontfile='{font_path}':text='EL ESTÁNDAR DE LA FORJA':fontcolor=white@0.8:fontsize=38:x=(w-text_w)/2:y=1630:alpha='if(lt(t,3),t-2,1)'"
         )
 
         cmd = [
