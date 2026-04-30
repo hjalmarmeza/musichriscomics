@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import './index.css';
+import React, { useState, useEffect } from 'react';
+import './App.css';
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -11,9 +11,17 @@ function App() {
   const GH_TOKEN = localStorage.getItem('GH_TOKEN') || '';
   const GH_REPO = 'hjalmarmeza/musichris_comic';
 
+  useEffect(() => {
+    // Auto-hide splash after a few seconds or on interaction
+    const timer = setTimeout(() => {
+      // Optional: auto transition
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const triggerForgeAction = async () => {
     if (!GH_TOKEN) {
-      const token = prompt('Introduce tu GitHub PAT:');
+      const token = prompt('Introduce tu GitHub PAT (Master Access):');
       if (token) {
         localStorage.setItem('GH_TOKEN', token);
         window.location.reload();
@@ -22,7 +30,7 @@ function App() {
     }
 
     if (!storyTitle || !storyIdea) {
-      alert('Por favor, llena ambos campos.');
+      alert('Por favor, llena ambos campos para iniciar la forja.');
       return;
     }
 
@@ -47,7 +55,7 @@ function App() {
       });
 
       if (response.ok) {
-        setStatus('✅ ¡FORJA ENVIADA!');
+        setStatus('✨ ¡LA FORJA HA COMENZADO!');
         setTimeout(() => {
           setIsForging(false);
           setStoryTitle('');
@@ -58,8 +66,8 @@ function App() {
         throw new Error();
       }
     } catch (err) {
-      setStatus('❌ ERROR DE CONEXIÓN');
-      setIsForging(false);
+      setStatus('❌ ERROR DE PROTOCOLO');
+      setTimeout(() => setIsForging(false), 3000);
     }
   };
 
@@ -67,11 +75,11 @@ function App() {
     return (
       <div className="splash-screen" onClick={() => setShowSplash(false)}>
         <div className="splash-overlay"></div>
-        <div className="splash-content">
-          <img src="logo_v4.png" alt="Logo" className="pulse-logo" style={{ width: '180px' }} />
-          <h1 className="splash-title">MUSICHRIS COMIC</h1>
-          <p className="splash-subtitle">EL ESTÁNDAR DE LA FORJA</p>
-          <div className="tap-to-start">TOCA PARA INICIAR</div>
+        <div className="splash-content fade-in">
+          <img src="logo_v4.png" alt="Logo" className="pulse-logo" style={{ width: '220px' }} />
+          <h1 className="splash-title">MUSICHRIS</h1>
+          <p className="splash-subtitle">COMIC ENGINE • 9 PANTALLAS</p>
+          <div className="tap-to-start">TOCA PARA ENTRAR AL SISTEMA</div>
         </div>
       </div>
     );
@@ -80,40 +88,44 @@ function App() {
   return (
     <div className="mobile-container fade-in">
       <header className="comic-header-mini">
-        <img src="logo_v4.png" alt="Logo" style={{ width: '80px' }} onClick={() => setShowSplash(true)} />
-        <div className="brand-tag">MUSICHRIS_STUDIO</div>
+        <img src="logo_v4.png" alt="Logo" style={{ width: '60px', cursor: 'pointer' }} onClick={() => setShowSplash(true)} />
+        <div className="brand-tag">DIVINE_ENGINE_v1.0</div>
       </header>
 
       <main className="glass-card">
         {!isForging ? (
           <>
-            <div className="forge-header" style={{ textAlign: 'center', marginBottom: '30px' }}>
-              <h2 style={{ fontSize: '2.2rem', color: 'white' }}>NUEVA HISTORIA</h2>
-              <div style={{ height: '2px', background: 'var(--comic-gold)', width: '50px', margin: '10px auto' }}></div>
+            <div className="forge-header" style={{ textAlign: 'center', marginBottom: '40px' }}>
+              <h2 style={{ fontSize: '1.8rem', color: 'white', fontWeight: '800' }}>NUEVA FORJA</h2>
+              <div style={{ height: '3px', background: 'var(--accent-gold)', width: '30px', margin: '15px auto', borderRadius: '10px' }}></div>
             </div>
             
             <div className="input-group">
-              <label className="label-comic">Título de la Producción</label>
-              <input 
-                type="text"
-                placeholder="Ej: David y Goliat"
-                value={storyTitle}
-                onChange={(e) => setStoryTitle(e.target.value)}
-                className="input-comic"
-              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label className="label-comic">Título de Producción</label>
+                <input 
+                  type="text"
+                  placeholder="Ej: El Sacrificio de Isaac"
+                  value={storyTitle}
+                  onChange={(e) => setStoryTitle(e.target.value)}
+                  className="input-comic"
+                />
+              </div>
               
-              <label className="label-comic">Idea Central (IA Expandirá esto)</label>
-              <textarea 
-                rows="4" 
-                placeholder="Describe la idea principal aquí..."
-                value={storyIdea}
-                onChange={(e) => setStoryIdea(e.target.value)}
-                className="input-comic"
-              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label className="label-comic">Idea Ministerial</label>
+                <textarea 
+                  rows="4" 
+                  placeholder="Describe la esencia de la historia..."
+                  value={storyIdea}
+                  onChange={(e) => setStoryIdea(e.target.value)}
+                  className="input-comic"
+                />
+              </div>
             </div>
 
             <button className="forge-btn-premium" onClick={triggerForgeAction}>
-              FORJAR VIDEO
+              INICIAR FORJA MAESTRA
             </button>
           </>
         ) : (
@@ -124,8 +136,8 @@ function App() {
         )}
       </main>
 
-      <footer className="footer-comic" style={{ padding: '20px', textAlign: 'center', fontSize: '0.7rem', opacity: 0.6, letterSpacing: '2px' }}>
-         IA MINISTERIAL v1.0 • 9 PANTALLAS • 4K
+      <footer className="footer-comic" style={{ padding: '30px', textAlign: 'center', fontSize: '0.6rem', opacity: 0.4, letterSpacing: '3px' }}>
+         IA MINISTERIAL • 4K • HIGH DENSITY • 9 SCREENS
       </footer>
     </div>
   );

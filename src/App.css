@@ -1,184 +1,212 @@
-.counter {
-  font-size: 16px;
-  padding: 5px 10px;
-  border-radius: 5px;
-  color: var(--accent);
-  background: var(--accent-bg);
-  border: 2px solid transparent;
-  transition: border-color 0.3s;
-  margin-bottom: 24px;
-
-  &:hover {
-    border-color: var(--accent-border);
-  }
-  &:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-}
-
-.hero {
+.mobile-container {
+  max-width: 480px;
+  margin: 0 auto;
+  height: 100vh;
   position: relative;
-
-  .base,
-  .framework,
-  .vite {
-    inset-inline: 0;
-    margin: 0 auto;
-  }
-
-  .base {
-    width: 170px;
-    position: relative;
-    z-index: 0;
-  }
-
-  .framework,
-  .vite {
-    position: absolute;
-  }
-
-  .framework {
-    z-index: 1;
-    top: 34px;
-    height: 28px;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
-      scale(1.4);
-  }
-
-  .vite {
-    z-index: 0;
-    top: 107px;
-    height: 26px;
-    width: auto;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
-      scale(0.8);
-  }
-}
-
-#center {
   display: flex;
   flex-direction: column;
-  gap: 25px;
-  place-content: center;
-  place-items: center;
-  flex-grow: 1;
-
-  @media (max-width: 1024px) {
-    padding: 32px 20px 24px;
-    gap: 18px;
-  }
+  background: radial-gradient(circle at top, #111827 0%, var(--bg-deep) 70%);
 }
 
-#next-steps {
+/* --- SPLASH SCREEN --- */
+.splash-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
   display: flex;
-  border-top: 1px solid var(--border);
-  text-align: left;
-
-  & > div {
-    flex: 1 1 0;
-    padding: 32px;
-    @media (max-width: 1024px) {
-      padding: 24px 20px;
-    }
-  }
-
-  .icon {
-    margin-bottom: 16px;
-    width: 22px;
-    height: 22px;
-  }
-
-  @media (max-width: 1024px) {
-    flex-direction: column;
-    text-align: center;
-  }
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: #000;
+  overflow: hidden;
 }
 
-#docs {
-  border-right: 1px solid var(--border);
-
-  @media (max-width: 1024px) {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
+.splash-overlay {
+  position: absolute;
+  inset: 0;
+  background: 
+    linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.8) 100%),
+    url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
+  opacity: 0.4;
 }
 
-#next-steps ul {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  gap: 8px;
-  margin: 32px 0 0;
-
-  .logo {
-    height: 18px;
-  }
-
-  a {
-    color: var(--text-h);
-    font-size: 16px;
-    border-radius: 6px;
-    background: var(--social-bg);
-    display: flex;
-    padding: 6px 12px;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-    transition: box-shadow 0.3s;
-
-    &:hover {
-      box-shadow: var(--shadow);
-    }
-    .button-icon {
-      height: 18px;
-      width: 18px;
-    }
-  }
-
-  @media (max-width: 1024px) {
-    margin-top: 20px;
-    flex-wrap: wrap;
-    justify-content: center;
-
-    li {
-      flex: 1 1 calc(50% - 8px);
-    }
-
-    a {
-      width: 100%;
-      justify-content: center;
-      box-sizing: border-box;
-    }
-  }
-}
-
-#spacer {
-  height: 88px;
-  border-top: 1px solid var(--border);
-  @media (max-width: 1024px) {
-    height: 48px;
-  }
-}
-
-.ticks {
+.splash-content {
   position: relative;
+  text-align: center;
+  z-index: 2;
+}
+
+.pulse-logo {
+  animation: pulseGlow 3s infinite ease-in-out;
+  margin-bottom: 2rem;
+  filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.3));
+}
+
+.splash-title {
+  font-family: var(--font-main);
+  font-weight: 800;
+  font-size: 3rem;
+  letter-spacing: 6px;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(to bottom, #fff 0%, #aaa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.splash-subtitle {
+  font-family: var(--font-main);
+  font-size: 0.8rem;
+  letter-spacing: 4px;
+  color: var(--accent-gold);
+  opacity: 0.8;
+}
+
+.tap-to-start {
+  position: absolute;
+  bottom: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  letter-spacing: 3px;
+  opacity: 0.4;
+  white-space: nowrap;
+}
+
+/* --- DASHBOARD --- */
+.comic-header-mini {
+  padding: 2.5rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brand-tag {
+  font-family: var(--font-main);
+  font-size: 0.65rem;
+  letter-spacing: 2px;
+  color: var(--accent-gold);
+  border-bottom: 1px solid var(--accent-gold-muted);
+  padding-bottom: 4px;
+}
+
+.glass-card {
+  margin: 0 1.5rem;
+  padding: 2rem;
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  border-radius: 30px;
+  border: 1px solid var(--border-glass);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4), var(--glow-shadow);
+  flex-grow: 0;
+  animation: fadeIn 1s ease-out;
+}
+
+.forge-header h2 {
+  font-family: var(--font-main);
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.label-comic {
+  font-size: 0.75rem;
+  letter-spacing: 1.5px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: -1rem;
+}
+
+.input-comic {
   width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 15px;
+  padding: 1.2rem;
+  color: white;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
 
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    top: -4.5px;
-    border: 5px solid transparent;
-  }
+.input-comic:focus {
+  outline: none;
+  border-color: var(--accent-gold-muted);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.1);
+}
 
-  &::before {
-    left: 0;
-    border-left-color: var(--border);
-  }
-  &::after {
-    right: 0;
-    border-right-color: var(--border);
-  }
+.forge-btn-premium {
+  width: 100%;
+  padding: 1.5rem;
+  border-radius: 18px;
+  border: none;
+  background: linear-gradient(135deg, #FFD700 0%, #B8860B 100%);
+  color: #000;
+  font-family: var(--font-main);
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 10px 25px rgba(184, 134, 11, 0.3);
+}
+
+.forge-btn-premium:hover {
+  transform: scale(1.02);
+  box-shadow: 0 15px 35px rgba(184, 134, 11, 0.5);
+}
+
+.forge-btn-premium:active {
+  transform: scale(0.98);
+}
+
+/* --- FORGE STATUS --- */
+.status-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  padding: 3rem 0;
+}
+
+.ai-loader {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  position: relative;
+  animation: pulseGlow 1.5s infinite;
+}
+
+.ai-loader::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border: 2px solid var(--accent-gold-muted);
+  border-radius: 50%;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.status-text {
+  font-family: var(--font-main);
+  letter-spacing: 3px;
+  font-size: 0.9rem;
+  text-align: center;
+  color: var(--accent-gold);
+}
+
+.footer-comic {
+  margin-top: auto;
+  font-family: var(--font-main);
 }

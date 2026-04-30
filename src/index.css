@@ -1,150 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500&display=swap');
+
 :root {
-  --comic-blue: #007bff;
-  --comic-gold: #ffcc00;
-  --comic-dark: #0a0e14;
-  --comic-glass: rgba(255, 255, 255, 0.05);
-  --comic-border: rgba(255, 255, 255, 0.1);
-  --comic-glow: 0 0 20px rgba(0, 123, 255, 0.3);
+  --bg-deep: #020408;
+  --bg-surface: #0a0c12;
+  --bg-glass: rgba(13, 17, 23, 0.85);
+  --accent-gold: #FFD700;
+  --accent-gold-muted: rgba(255, 215, 0, 0.3);
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --border-glass: rgba(255, 215, 0, 0.15);
+  --glow-shadow: 0 0 30px rgba(255, 215, 0, 0.15);
+  --font-main: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
 }
 
 * {
+  margin: 0;
+  padding: 0;
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  margin: 0;
-  padding: 0;
-  font-family: 'Inter', sans-serif;
-  background-color: var(--comic-dark);
-  color: white;
-  overflow: hidden;
-}
-
-.mobile-container {
-  width: 100vw;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  overflow: hidden; /* Mobile view lock */
   height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: radial-gradient(circle at top right, #1a2a44 0%, #0a0e14 100%);
+  width: 100vw;
 }
 
-/* Glassmorphism Card */
-.glass-card {
-  margin: 20px;
-  padding: 30px;
-  background: var(--comic-glass);
-  backdrop-filter: blur(15px);
-  border: 1px solid var(--comic-border);
-  border-radius: 24px;
-  box-shadow: var(--comic-glow);
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+#root {
+  height: 100%;
 }
 
-/* Typography */
-h1, h2 {
-  font-family: 'Bangers', cursive;
-  margin: 0;
-  letter-spacing: 1px;
+/* Base Utility Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.splash-title {
-  font-size: 3.5rem;
-  background: linear-gradient(to bottom, #fff 0%, var(--comic-gold) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  filter: drop-shadow(2px 2px 0px var(--comic-blue));
+@keyframes pulseGlow {
+  0% { filter: drop-shadow(0 0 5px var(--accent-gold-muted)); }
+  50% { filter: drop-shadow(0 0 20px var(--accent-gold-muted)); }
+  100% { filter: drop-shadow(0 0 5px var(--accent-gold-muted)); }
 }
 
-.label-comic {
-  font-weight: 800;
-  font-size: 0.9rem;
-  color: var(--comic-gold);
-  text-transform: uppercase;
-  margin-bottom: 10px;
-  display: block;
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
-/* Inputs Premium */
-.input-comic {
-  width: 100%;
-  background: rgba(0,0,0,0.4);
-  border: 1px solid var(--comic-border);
-  border-radius: 12px;
-  padding: 15px;
-  color: white;
-  font-size: 1rem;
-  margin-bottom: 25px;
-  transition: all 0.3s;
+.fade-in {
+  animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.input-comic:focus {
-  outline: none;
-  border-color: var(--comic-blue);
-  box-shadow: 0 0 10px rgba(0, 123, 255, 0.5);
+/* Custom Scrollbar for Textareas */
+::-webkit-scrollbar {
+  width: 4px;
 }
-
-/* Buttons Premium */
-.forge-btn-premium {
-  background: linear-gradient(135deg, var(--comic-blue) 0%, #0056b3 100%);
-  color: white;
-  border: none;
-  border-radius: 16px;
-  padding: 20px;
-  font-family: 'Bangers';
-  font-size: 1.8rem;
-  cursor: pointer;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
-  transition: all 0.2s;
-  text-transform: uppercase;
+::-webkit-scrollbar-track {
+  background: transparent;
 }
-
-.forge-btn-premium:active {
-  transform: scale(0.95);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
-}
-
-/* Splash & Loading */
-.splash-screen {
-  position: fixed;
-  inset: 0;
-  background: url('master_intro_bg.png') center/cover;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  z-index: 2000;
-}
-
-.splash-overlay {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle, rgba(10,14,20,0.6) 0%, rgba(10,14,20,0.95) 100%);
-}
-
-.splash-content {
-  position: relative;
-  z-index: 1;
-}
-
-.ai-loader {
-  width: 80px;
-  height: 80px;
-  border: 4px solid var(--comic-gold);
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 20px;
-}
-
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.status-text {
-  font-weight: 900;
-  letter-spacing: 2px;
-  color: var(--comic-gold);
-  text-align: center;
+::-webkit-scrollbar-thumb {
+  background: var(--accent-gold-muted);
+  border-radius: 10px;
 }
