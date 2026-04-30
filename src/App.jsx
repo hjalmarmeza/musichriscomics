@@ -18,7 +18,7 @@ function App() {
   const filteredCatalog = catalogData.filter(song => 
     song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (song.album && song.album.toLowerCase().includes(searchQuery.toLowerCase()))
-  ).slice(0, 20); // Limit to 20 for performance in preview
+  );
 
   const triggerForgeAction = async () => {
     if (!GH_TOKEN) {
