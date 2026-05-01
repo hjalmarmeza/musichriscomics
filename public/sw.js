@@ -1,4 +1,4 @@
-const CACHE_NAME = 'musichris-comic-v1';
+const CACHE_NAME = 'musichris-comic-v2';
 const ASSETS = [
   '/musichriscomics/',
   '/musichriscomics/index.html',
