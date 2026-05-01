@@ -3,8 +3,8 @@
   "name": "MusiChris Comic Forge",
   "icons": [
     {
-      "src": "logo_comic.png",
-      "sizes": "1024x1024",
+      "src": "logo_v4.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
