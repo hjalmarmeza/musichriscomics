@@ -74,14 +74,14 @@ def forge_roca_viva():
         # Efecto Zoom-In (Hacia adentro)
         zoom_filter = (
             "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,"
-            "zoompan=z='zoom+0.0015':d=180:s=1080x1920:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
+            "zoompan=z='zoom+0.0015':d=135:s=1080x1920:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
         )
         
         import subprocess
         subprocess.run([
             "ffmpeg", "-y", "-loop", "1", "-i", str(img_path),
             "-vf", f"{zoom_filter},fade=t=in:st=0:d=0.5",
-            "-t", "6", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(vid_path)
+            "-t", "4.5", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(vid_path)
         ], check=True)
         panel_vids.append(str(vid_path))
     
