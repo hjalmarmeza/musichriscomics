@@ -10,6 +10,7 @@ createRoot(document.getElementById('root')).render(
 )
 
 // Register PWA Service Worker
+/*
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/musichriscomics/sw.js')
@@ -17,3 +18,4 @@ if ('serviceWorker' in navigator) {
       .catch(err => console.log('SW Registration Failed', err));
   });
 }
+*/
