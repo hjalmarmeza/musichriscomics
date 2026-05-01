@@ -1,3 +1,16 @@
+
 .env
 node_modules
 dist
+temp/
+renders/
+assets/panels/
+*.mp4
+*.jpg
+*.png
+!public/*.png
+!public/*.mp4
+.DS_Store
+__pycache__/
+venv/
+.python-version

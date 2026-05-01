@@ -4,11 +4,11 @@ import json
 import time
 import subprocess
 import random
-import numpy as np
 from pathlib import Path
 from dotenv import load_dotenv
 from huggingface_hub import InferenceClient
 from io import BytesIO
+import io
 from PIL import Image, ImageDraw, ImageFont, ImageStat
 
 # Configuración Maestra
@@ -25,57 +25,92 @@ class MusiChrisComicEngine:
         self.assets_dir = self.base_dir / "assets/panels"
         self.renders_dir = self.base_dir / "renders"
         self.temp_dir = self.base_dir / "temp"
-        self.video_assets = self.base_dir / "assets/video"
         self.public_dir = self.base_dir / "public"
         self.catalog_path = self.base_dir / "data/catalog.json"
         
-        for d in [self.assets_dir, self.renders_dir, self.temp_dir, self.video_assets]:
+        for d in [self.assets_dir, self.renders_dir, self.temp_dir]:
             d.mkdir(parents=True, exist_ok=True)
 
-    def get_random_bg_music(self):
-        try:
-            with open(self.catalog_path, 'r') as f:
-                catalog = json.load(f)
-            generic_songs = [s for s in catalog if "Descanso" in s.get("moments", [])]
-            return random.choice(generic_songs if generic_songs else catalog)
-        except Exception:
-            return {"audio_url": "https://res.cloudinary.com/dveqs8f3n/video/upload/v1765360897/wi5649ngot0kzi9m7mwu.mp3"}
+    def generate_image_hf(self, prompt, retries=3):
+        """Genera imagen con IA y retorna bytes."""
+        for i in range(retries):
+            try:
+                image = client.text_to_image(prompt + STYLE_PROMPT, model=MODEL_ID)
+                img_byte_arr = io.BytesIO()
+                image.save(img_byte_arr, format='PNG')
+                return img_byte_arr.getvalue()
+            except Exception as e:
+                print(f"⚠️ Intento {i+1} falló: {e}")
+                time.sleep(10)
+        return None
 
     def generate_title_video(self, title):
-        """Genera el video inicial animado basado en video_pantalla_inicio.mp4"""
-        input_video = self.public_dir / "video_pantalla_inicio.mp4"
+        """Genera la pantalla inicial con el título 'horneado' sobre el video de fondo."""
         output_video = self.assets_dir / "intro_rendered.mp4"
+        input_video = self.public_dir / "video_pantalla_inicio.mp4"
+        
+        # Preparar Canvas de Texto (Transparente 1080x1920)
+        overlay = Image.new('RGBA', (1080, 1920), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(overlay)
+        
         font_path = "/System/Library/Fonts/Helvetica.ttc"
-        
-        # Escapar caracteres para FFmpeg drawtext
-        clean_title = title.upper().replace(":", "\\:").replace("'", "")
-        
-        # Lógica de líneas dinámica: Si es corto, 1 línea. Si es largo, 2.
-        words = clean_title.split()
-        if len(clean_title) < 20:
-            line1, line2 = clean_title, ""
-        else:
-            mid = len(words) // 2
-            line1, line2 = " ".join(words[:mid]), " ".join(words[mid:])
-        
-        # Filtro: Ralentizar + Fades + Texto
-        # Título arriba (y=350), Branding DEBAJO del pergamino (y=1400) para evitar UI YouTube
-        # Fade In al inicio (t,0,1) y Fade Out al final (t,7,1)
-        filter_str = (
-            f"setpts=2.0*PTS,fade=t=in:st=0:d=1,fade=t=out:st=7:d=1,"
-            f"drawtext=fontfile='{font_path}':text='{line1}':fontcolor=white:fontsize=95:x=(w-text_w)/2:y=350:shadowcolor=black:shadowx=4:shadowy=4:alpha='if(lt(t,1.5),t-0.5,1)',"
-            f"drawtext=fontfile='{font_path}':text='{line2}':fontcolor=white:fontsize=95:x=(w-text_w)/2:y=470:shadowcolor=black:shadowx=4:shadowy=4:alpha='if(lt(t,1.5),t-0.5,1)',"
-            f"drawtext=fontfile='{font_path}':text='MUSICHRIS_STUDIO':fontcolor=0xFFD700:fontsize=60:x=(w-text_w)/2:y=1400:alpha='if(lt(t,2.5),t-1.5,1)',"
-            f"drawtext=fontfile='{font_path}':text='EL ESTÁNDAR DE LA FORJA':fontcolor=white@0.8:fontsize=38:x=(w-text_w)/2:y=1480:alpha='if(lt(t,3),t-2,1)'"
-        )
+        try:
+            f_title = ImageFont.truetype(font_path, 80)
+            f_brand = ImageFont.truetype(font_path, 50)
+        except:
+            f_title = f_brand = ImageFont.load_default()
 
-        cmd = [
-            "ffmpeg", "-y", "-i", str(input_video),
-            "-vf", filter_str,
-            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
-            str(output_video)
-        ]
+        def draw_premium_text(draw_obj, y, text, font, color, max_width=18):
+            words = text.split()
+            lines = []
+            curr = ""
+            for w in words:
+                if len(curr + w) < max_width: curr += w + " "
+                else:
+                    lines.append(curr.strip())
+                    curr = w + " "
+            lines.append(curr.strip())
+            
+            curr_y = y
+            for line in lines:
+                bbox = draw_obj.textbbox((0, 0), line, font=font)
+                w = bbox[2] - bbox[0]
+                # Sombra Profunda
+                draw_obj.text(((1080-w)/2 + 4, curr_y + 4), line, font=font, fill=(0,0,0,220))
+                draw_obj.text(((1080-w)/2, curr_y), line, font=font, fill=color)
+                curr_y += 95
+
+        # El título va ARRIBA del pergamino (según corrección de usuario)
+        draw_premium_text(draw, 650, title.upper(), f_title, (255, 215, 0))
+        draw_premium_text(draw, 1050, "MUSICHRIS_STUDIO", f_brand, (255, 255, 255))
         
+        overlay_path = self.temp_dir / "intro_overlay.png"
+        overlay.save(overlay_path)
+
+        # Filtro de Video Intro (9:16)
+        # Forzamos que el video sea el fondo y el overlay el título
+        if input_video.exists():
+            print(f"🎥 Usando VIDEO INTRO: {input_video.name}")
+            cmd = [
+                "ffmpeg", "-y", "-i", str(input_video),
+                "-i", str(overlay_path),
+                "-filter_complex", 
+                "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1[bg]; "
+                "[bg][1:v]overlay=enable='between(t,1,7)',fade=t=in:st=0:d=1,fade=t=out:st=7:d=1",
+                "-t", "8", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(output_video)
+            ]
+        else:
+            print("⚠️ Video intro no encontrado, usando master_intro_bg.png")
+            bg_image = self.public_dir / "master_intro_bg.png"
+            cmd = [
+                "ffmpeg", "-y", "-loop", "1", "-t", "8", "-i", str(bg_image),
+                "-i", str(overlay_path),
+                "-filter_complex", 
+                "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1[bg]; "
+                "[bg][1:v]overlay=enable='between(t,1,7)',fade=t=in:st=0:d=1,fade=t=out:st=7:d=1",
+                "-c:v", "libx264", "-pix_fmt", "yuv420p", str(output_video)
+            ]
+            
         subprocess.run(cmd, check=True)
         return str(output_video)
 
@@ -85,254 +120,262 @@ class MusiChrisComicEngine:
         # Cuadrante Izquierdo Superior vs Derecho Superior
         left_area = img.crop((margin, margin, margin + box_w, margin + box_h))
         right_area = img.crop((1080 - margin - box_w, margin, 1080 - margin, margin + box_h))
-        
-        # Calculamos la desviación estándar (complejidad)
         left_stat = ImageStat.Stat(left_area).stddev
         right_stat = ImageStat.Stat(right_area).stddev
-        
-        # Sumamos las desviaciones de los canales R, G, B
-        left_score = sum(left_stat)
-        right_score = sum(right_stat)
-        
-        # Preferimos la izquierda si la diferencia no es mucha, 
-        # pero si la derecha está MUCHO más vacía, vamos a la derecha.
-        # YouTube UI suele estar más cargada a la derecha, así que sesgamos a la izquierda.
-        if right_score < (left_score * 0.7): # Solo si la derecha es notablemente más simple
-            return 1080 - margin - box_w, margin
-        return margin, margin
+        if sum(left_stat) < sum(right_stat): return margin, margin
+        else: return 1080 - margin - box_w, margin
 
-    def add_text_to_image(self, image_bytes, text):
-        img = Image.open(BytesIO(image_bytes)).convert("RGB")
+    def add_text_to_image(self, img_data, text):
+        """Hornea el texto ministerial sobre el panel asegurando legibilidad vertical 9:16."""
+        img = Image.open(io.BytesIO(img_data)).convert('RGBA')
+        
+        # Forzar redimensionado a 1080x1920 con crop antes de añadir texto
         w, h = img.size
-        new_w = 1080
-        new_h = int(h * (new_w / w))
-        img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+        aspect = 1080/1920
+        if w/h > aspect: # Imagen ancha
+            new_w = int(h * aspect)
+            left = (w - new_w) / 2
+            img = img.crop((left, 0, left + new_w, h))
+        else: # Imagen alta
+            new_h = int(w / aspect)
+            top = (h - new_h) / 2
+            img = img.crop((0, top, w, top + new_h))
         
-        canvas = Image.new("RGB", (1080, 1920), (10, 14, 20))
-        offset = (0, (1920 - new_h) // 2)
-        canvas.paste(img, offset)
+        img = img.resize((1080, 1920), Image.Resampling.LANCZOS)
+        overlay = Image.new('RGBA', img.size, (0,0,0,0))
+        draw = ImageDraw.Draw(overlay)
         
-        draw = ImageDraw.Draw(canvas)
-        padding = 40
-        
-        try:
-            font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 45)
-        except:
-            font = ImageFont.load_default()
-            
-        lines = []
-        words = text.split()
-        curr = ""
+        font_path = "/System/Library/Fonts/Helvetica.ttc"
+        try: font = ImageFont.truetype(font_path, 48)
+        except: font = ImageFont.load_default()
+
+        # Envolver texto
+        words = text.split(); lines = []; curr = ""
         for w in words:
-            if len(curr + w) < 25: curr += w + " "
+            if len(curr + w) < 32: curr += w + " "
             else: lines.append(curr.strip()); curr = w + " "
         lines.append(curr.strip())
         
-        max_w = 0
+        line_h = 60; box_w = 0
         for l in lines:
             bbox = draw.textbbox((0, 0), l, font=font)
-            max_w = max(max_w, bbox[2] - bbox[0])
+            box_w = max(box_w, bbox[2] - bbox[0])
+        box_w += 40; box_h = len(lines) * line_h + 30
         
-        box_w, box_h = max_w + (padding * 2), (len(lines) * 60) + (padding)
+        # Colocar el cuadro de texto en la parte INFERIOR-CENTRAL (Estándar de cine/comic)
+        # Margin de 100px desde el fondo para no tocar el borde
+        x = (1080 - box_w) / 2
+        y = 1920 - box_h - 150 
         
-        # Inteligencia de Posicionamiento
-        pos_x, pos_y = self.analyze_best_corner(canvas, box_w, box_h)
+        # Fondo con bordes redondeados (simulado con rectángulo) y borde dorado
+        draw.rectangle([x, y, x + box_w, y + box_h], fill=(0,0,0,200), outline=(255, 215, 0), width=3)
         
-        overlay = Image.new('RGBA', (1080, 1920), (0,0,0,0))
-        overlay_draw = ImageDraw.Draw(overlay)
-        overlay_draw.rectangle([pos_x, pos_y, pos_x + box_w, pos_y + box_h], fill=(0, 0, 0, 180))
-        canvas.paste(overlay, (0,0), overlay)
-        
-        y_text = pos_y + 30
-        for l in lines:
-            draw.text((pos_x + padding, y_text), l, font=font, fill=(255, 215, 0))
-            y_text += 60
+        curr_y = y + 15
+        for line in lines:
+            # Centrar cada línea individualmente dentro del cuadro
+            bbox = draw.textbbox((0, 0), line, font=font)
+            line_w = bbox[2] - bbox[0]
+            line_x = x + (box_w - line_w) / 2
+            draw.text((line_x, curr_y), line, font=font, fill=(255, 215, 0)) # Oro Divine
+            curr_y += line_h
             
-        output = BytesIO()
-        canvas.save(output, format="PNG")
+        final_img = Image.alpha_composite(img, overlay)
+        output = io.BytesIO()
+        final_img.convert('RGB').save(output, format='JPEG', quality=95)
         return output.getvalue()
 
-    def query_hf(self, prompt, retries=3):
-        for i in range(retries):
-            try:
-                image = client.text_to_image(prompt + STYLE_PROMPT, model=MODEL_ID)
-                img_byte_arr = BytesIO()
-                image.save(img_byte_arr, format='PNG')
-                return img_byte_arr.getvalue()
-            except Exception as e:
-                print(f"⚠️ Intento {i+1} falló: {e}"); time.sleep(10)
-        return None
+    def auto_split_story(self, description):
+        """Divide una descripción larga en 8 fragmentos para los paneles."""
+        sentences = re.split(r'(?<=[.!?])\s+', description)
+        panels = []
+        for i in range(8):
+            # Tomar una oración o rotar si hay pocas
+            idx = i % len(sentences)
+            text = sentences[idx]
+            # Prompt enriquecido para la IA
+            prompt = f"Panel {i+1} for a christian music story: {text}. Divine light, ethereal atmosphere, cinematic comic style."
+            panels.append({"prompt": prompt, "text": text})
+        return panels
 
-    def forge_panels(self, story_data):
+    def forge_panels(self, story_panels):
+        """Genera los paneles de imagen con IA y los convierte en clips de video verticales (9:16)."""
+        if isinstance(story_panels, str):
+            story_panels = self.auto_split_story(story_panels)
+            
         panel_vids = []
-        for i, entry in enumerate(story_data):
-            print(f"🎨 Panel {i+1}/{len(story_data)}...")
-            image_data = self.query_hf(entry['prompt'])
-            if not image_data: continue
+        for i, p in enumerate(story_panels):
+            print(f"🎨 Forjando Panel {i+1}...")
+            img_data = self.generate_image_hf(p['prompt'])
+            if not img_data: continue
             
-            # Guardar imagen base para zoom
-            img_path = self.temp_dir / f"raw_panel_{i}.png"
-            with open(img_path, "wb") as f: f.write(image_data)
+            baked_data = self.add_text_to_image(img_data, p['text'])
             
-            # Preparar imagen para análisis de texto (resize/canvas)
-            img = Image.open(BytesIO(image_data)).convert("RGB")
-            new_w, new_h = 1080, int(img.height * (1080 / img.width))
-            img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
-            canvas = Image.new("RGB", (1080, 1920), (10, 14, 20))
-            canvas.paste(img, (0, (1920 - new_h) // 2))
+            panel_img = self.temp_dir / f"panel_{i}.jpg"
+            with open(panel_img, "wb") as f: f.write(baked_data)
             
-            # Inteligencia de Posicionamiento
-            font_path = "/System/Library/Fonts/Helvetica.ttc"
-            font_size = 45
-            padding = 40
+            vid_path = self.assets_dir / f"panel_{i}.mp4"
             
-            # Wrap y medida de texto
-            words = entry['text'].split()
-            lines = []
-            curr = ""
-            for w in words:
-                if len(curr + w) < 25: curr += w + " "
-                else: lines.append(curr.strip()); curr = w + " "
-            lines.append(curr.strip())
-            
-            # Medir caja para Cápsula (Pill)
-            box_w = 750
-            box_h = (len(lines) * 60) + (padding * 1.5)
-            pos_x, pos_y = self.analyze_best_corner(canvas, box_w, box_h)
-            
-            # Crear overlay de la CÁPSULA (Pill Shape) en PIL
-            pill_overlay = Image.new('RGBA', (1080, 1920), (0,0,0,0))
-            p_draw = ImageDraw.Draw(pill_overlay)
-            p_draw.rounded_rectangle([pos_x, pos_y, pos_x + box_w, pos_y + box_h], radius=box_h//2, fill=(0, 0, 0, 190))
-            pill_path = self.temp_dir / f"pill_{i}.png"
-            pill_overlay.save(pill_path)
-            
-            vid_path = self.assets_dir / f"panel_vid_{i}.mp4"
-            drawtext_filters = []
-            drawtext_filters.append(
-                f"drawtext=fontfile='{font_path}':text='•':fontcolor=0xFFD700:fontsize=60:x={pos_x+padding}:y={pos_y+padding-10}:enable='between(t,0.5,5)'"
+            # Zoompan corregido para verticalidad 9:16
+            zoom_filter = (
+                "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,"
+                "zoompan=z='min(zoom+0.0015,1.5)':d=180:s=1080x1920:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
             )
-            for j, line in enumerate(lines):
-                line_clean = line.replace("'", "").replace(":", "\\:")
-                x_off = pos_x + padding + 40
-                drawtext_filters.append(
-                    f"drawtext=fontfile='{font_path}':text='{line_clean}':fontcolor=white:fontsize={font_size}:x={x_off}:y={pos_y+padding+(j*60)}:enable='between(t,0.5,5)'"
-                )
             
-            zoom_filter = f"zoompan=z='min(zoom+0.001,1.5)':d=180:s=1080x1920"
             subprocess.run([
-                "ffmpeg", "-y", "-loop", "1", "-i", str(img_path),
-                "-i", str(pill_path),
-                "-filter_complex", f"[0:v]{zoom_filter}[z]; [z][1:v]overlay=enable='between(t,0.5,5)'[o]; [o]{','.join(drawtext_filters)}[v]",
-                "-map", "[v]", "-t", "6", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(vid_path)
+                "ffmpeg", "-y", "-loop", "1", "-i", str(panel_img),
+                "-vf", f"{zoom_filter},fade=t=in:st=0:d=0.5",
+                "-t", "6", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(vid_path)
             ], check=True)
             panel_vids.append(str(vid_path))
-    def render_motion_comic(self, panel_paths, title, audio_url, output_name, story_data):
-        """Orquesta la producción final de 9 pantallas con fundidos y branding."""
-        print(f"🎬 Iniciando Forja Maestra: {title}")
-        output_path = self.renders_dir / output_name
-        audio_path = self.temp_dir / "bg_music.mp3"
-        outro_path = self.base_dir / "assets/video/outro.mp4"
+        return panel_vids
+
+    def generate_lesson_video(self, teaching):
+        """Genera la pantalla de enseñanza ministerial final (Sin encabezados genéricos)."""
+        output_video = self.temp_dir / "lesson_screen.mp4"
+        overlay = Image.new('RGBA', (1080, 1920), (0,0,0,0))
+        draw = ImageDraw.Draw(overlay)
+        
+        font_path = "/System/Library/Fonts/Helvetica.ttc"
+        try:
+            f_main = ImageFont.truetype(font_path, 65)
+            f_brand = ImageFont.truetype(font_path, 45)
+        except: f_main = f_brand = ImageFont.load_default()
+
+        def draw_wrapped_centered(y, text, font, color, max_w=25):
+            words = text.split(); lines = []; curr = ""
+            for w in words:
+                if len(curr + w) < max_w: curr += w + " "
+                else: lines.append(curr.strip()); curr = w + " "
+            lines.append(curr.strip())
+            cy = y
+            for l in lines:
+                bbox = draw.textbbox((0,0), l, font=font)
+                w = bbox[2] - bbox[0]
+                # Sombra de alto contraste (Offset para profundidad)
+                draw.text(((1080-w)/2 + 4, cy + 4), l, font=font, fill=(0,0,0,255))
+                draw.text(((1080-w)/2, cy), l, font=font, fill=color)
+                cy += 85
+
+        # Usar Oro Divine para máxima legibilidad y elegancia
+        draw_wrapped_centered(850, teaching, f_main, (255, 215, 0))
+        
+        # Branding discreto
+        bbox = draw.textbbox((0,0), "MUSICHRIS_STUDIO", font=f_brand)
+        draw.text(((1080-(bbox[2]-bbox[0]))/2, 1600), "MUSICHRIS_STUDIO", font=f_brand, fill=(255, 215, 0, 180))
+        
+        overlay_path = self.temp_dir / "lesson_overlay.png"
+        overlay.save(overlay_path)
+        
+        bg_image = self.public_dir / "master_teaching_bg.png"
+        
+        subprocess.run([
+            "ffmpeg", "-y", "-loop", "1", "-t", "6", "-i", str(bg_image),
+            "-i", str(overlay_path),
+            "-filter_complex", 
+            "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1[bg]; "
+            "[bg][1:v]overlay=enable='between(t,0,6)',fade=t=in:st=0:d=1,fade=t=out:st=5:d=1",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", str(output_video)
+        ], check=True)
+        return output_video
+
+    def render_motion_comic(self, panel_paths, title, audio_url, output_filename, story_data):
+        """Ensambla el comic final con el pipeline vertical corregido y branding premium."""
+        print(f"🎬 Ensamblando comic vertical: {title}")
+        output_path = self.renders_dir / output_filename
         
         intro_path = self.generate_title_video(title)
+        teaching_vid = self.generate_lesson_video(story_data.get('teaching', ''))
         
+        # Outro (Usar el que existe en assets/video)
+        outro_source = self.base_dir / "assets/video/outro.mp4"
+        outro_final = self.temp_dir / "outro_branded.mp4"
+        
+        # Branding Outro
+        o_overlay = Image.new('RGBA', (1080, 1920), (0,0,0,0))
+        o_draw = ImageDraw.Draw(o_overlay)
+        font_path = "/System/Library/Fonts/Helvetica.ttc"
+        try:
+            f_brand = ImageFont.truetype(font_path, 60)
+            f_slogan = ImageFont.truetype(font_path, 40)
+        except: f_brand = f_slogan = ImageFont.load_default()
+        
+        def draw_centered(draw_obj, y, text, font, color):
+            bbox = draw_obj.textbbox((0, 0), text, font=font)
+            w = bbox[2] - bbox[0]
+            draw_obj.text(((1080-w)/2, y), text, font=font, fill=color)
+
+        draw_centered(o_draw, 1400, "@MusiChris_Studio", f_brand, (255, 215, 0))
+        draw_centered(o_draw, 1480, "MINISTERIO MUSICAL & IA", f_slogan, (255, 255, 255))
+        
+        o_overlay_path = self.temp_dir / "outro_overlay.png"
+        o_overlay.save(o_overlay_path)
+        
+        subprocess.run([
+            "ffmpeg", "-y", "-i", str(outro_source),
+            "-i", str(o_overlay_path),
+            "-filter_complex", "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1[bg]; [bg][1:v]overlay=enable='between(t,0,10)'",
+            "-t", "10", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(outro_final)
+        ], check=True)
+        
+        vids = [intro_path] + panel_paths + [str(teaching_vid), str(outro_final)]
+        
+        # Normalización y Lista de Concatenación
+        concat_list = self.temp_dir / "concat_list.txt"
+        with open(concat_list, "w") as f:
+            for v in vids:
+                norm_v = self.temp_dir / f"norm_{Path(v).name}"
+                subprocess.run([
+                    "ffmpeg", "-y", "-i", str(v),
+                    "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", "-an", str(norm_v)
+                ], check=True)
+                f.write(f"file '{norm_v.absolute()}'\n")
+        
+        # 1. Unir videos (Silencioso)
+        temp_silent = self.temp_dir / "temp_silent.mp4"
+        subprocess.run([
+            "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_list),
+            "-c", "copy", str(temp_silent)
+        ], check=True)
+        
+        # 2. Mezclar Audio
         r = requests.get(audio_url)
+        audio_path = self.temp_dir / "temp_audio.mp3"
         with open(audio_path, "wb") as f: f.write(r.content)
-
-        # --- PANTALLA 8: ENSEÑANZA BÍBLICA ---
-        print("📖 Generando Pantalla de Enseñanza de Impacto...")
-        lesson_text = story_data.get('lesson', "Caminemos en fe.")
-        ref_text = story_data.get('reference', "")
         
-        lesson_vid = self.assets_dir / "teaching_screen.mp4"
-        bg_video = self.base_dir / "public" / "master_teaching_bg.mp4"
-        bg_img = self.base_dir / "public" / "master_teaching_bg.png"
-        
-        # Wrap de lección
-        l_words = lesson_text.split()
-        l_lines = []
-        curr = ""
-        for w in l_words:
-            if len(curr + w) < 25: curr += w + " "
-            else: l_lines.append(curr.strip()); curr = w + " "
-        l_lines.append(curr.strip())
-        
-        l_font = "/System/Library/Fonts/Helvetica.ttc"
-        l_filters = []
-        # Título "Enseñanza"
-        l_filters.append(f"drawtext=fontfile='{l_font}':text='ENERO DE FE':fontcolor=0xFFD700:fontsize=50:x=(w-text_w)/2:y=500:enable='between(t,0.5,5.5)'")
-        
-        # Líneas de lección
-        for idx, line in enumerate(l_lines):
-            l_filters.append(f"drawtext=fontfile='{l_font}':text='{line}':fontcolor=white:fontsize=55:x=(w-text_w)/2:y=700+({idx}*70):enable='between(t,0.5,5.5)'")
-            
-        # Cita Bíblica
-        l_filters.append(f"drawtext=fontfile='{l_font}':text='{ref_text}':fontcolor=0xFFD700:fontsize=45:x=(w-text_w)/2:y=1200:enable='between(t,1,5.5)'")
-        
-        # Si existe el video, lo usamos con slow-mo (5s -> 6s), si no, fallback a la imagen
-        if bg_video.exists():
-            ffmpeg_input = ["-i", str(bg_video)]
-            vf_chain = f"setpts=1.2*PTS,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,{','.join(l_filters)}"
-        else:
-            ffmpeg_input = ["-loop", "1", "-i", str(bg_img)]
-            vf_chain = f"scale=1080:1920,setsar=1,{','.join(l_filters)}"
-
         subprocess.run([
-            "ffmpeg", "-y"] + ffmpeg_input + [
-            "-vf", vf_chain,
-            "-t", "6", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(lesson_vid)
+            "ffmpeg", "-y", "-i", str(temp_silent),
+            "-i", str(audio_path),
+            "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+            "-map", "0:v:0", "-map", "1:a:0", "-shortest",
+            str(output_path)
         ], check=True)
-
-        # 2. Unir TODO (Intro + 6 Paneles + Enseñanza) con XFADE (0.5s)
-        vids = [intro_path] + panel_paths + [str(lesson_vid)]
-        filter_complex = ""
-        last_out = "[v0]"
-        for i in range(len(vids)):
-            filter_complex += f"[{i}:v]settb=AVTB,setpts=PTS-STARTPTS[v{i}];"
         
-        offset = 7.5 
-        for i in range(1, len(vids)):
-            next_out = f"cx{i}"
-            filter_complex += f"{last_out}[v{i}]xfade=transition=fade:duration=0.5:offset={offset}[{next_out}];"
-            last_out = f"[{next_out}]"
-            offset += 5.5
-            
-        final_input_args = []
-        for v in vids:
-            final_input_args.extend(["-i", str(v)])
-            
-        sequence_video = self.temp_dir / "full_sequence.mp4"
-        subprocess.run([
-            "ffmpeg", "-y"] + final_input_args + [
-            "-filter_complex", filter_complex,
-            "-map", last_out, "-c:v", "libx264", str(sequence_video)
-        ], check=True)
-
-        comic_duration = 8 + (len(panel_paths) * 5.5) + 5.5 # +1 panel de enseñanza
-        if outro_path.exists():
-            font_p = "/System/Library/Fonts/Helvetica.ttc"
-            final_cmd = [
-                "ffmpeg", "-y",
-                "-i", str(sequence_video),
-                "-i", str(audio_path),
-                "-i", str(outro_path),
-                "-filter_complex", 
-                f"[0:v]fade=t=out:st={comic_duration-1}:d=1[v0]; "
-                f"[2:v]setpts=1.25*PTS,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920, "
-                f"geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(lt(hypot(X-W/2,Y-H/2),H/2.2),255,0)', "
-                f"drawtext=fontfile='{font_p}':text='@MusiChris_Studio':fontcolor=0xFFD700:fontsize=60:x=(w-text_w)/2:y=1400:alpha='if(lt(t,2),t/2,1)', "
-                f"drawtext=fontfile='{font_p}':text='Caminemos Juntos En Fe':fontcolor=white:fontsize=45:x=(w-text_w)/2:y=1480:alpha='if(lt(t,3),t-2,1)', "
-                f"fade=t=in:st=0:d=1[vout]; "
-                f"[v0][vout]concat=n=2:v=1:a=0[v]; "
-                f"[1:a]afade=t=out:st={comic_duration+9}:d=1[a]",
-                "-map", "[v]", "-map", "[a]",
-                "-c:v", "libx264", "-shortest", str(output_path)
-            ]
-        else:
-            final_cmd = ["ffmpeg", "-y", "-i", str(sequence_video), "-i", str(audio_path), "-c:v", "libx264", "-shortest", str(output_path)]
-            
-        subprocess.run(final_cmd, check=True)
-        print(f"✅ ¡Video Finalizado! {output_path}")
+        return str(output_path)
 
 if __name__ == "__main__":
+    import sys
+    import re
+    if len(sys.argv) < 4:
+        print("Uso: python comic_engine.py <titulo> <descripcion> <audio_url>")
+        sys.exit(1)
+        
+    title = sys.argv[1]
+    description = sys.argv[2]
+    audio_url = sys.argv[3]
+    
     engine = MusiChrisComicEngine()
+    print(f"🚀 Iniciando forja local para: {title}")
+    
+    # 1. Generar paneles
+    panel_paths = engine.forge_panels(description)
+    
+    # 2. Renderizar video final
+    output_filename = f"{title.replace(' ', '_')}_local.mp4"
+    story_data = {
+        'teaching': description.split('.')[-1] or description # Usar la última frase como enseñanza
+    }
+    
+    engine.render_motion_comic(panel_paths, title, audio_url, output_filename, story_data)
+    
+    print(f"✨ Forja completada en: renders/{output_filename}")

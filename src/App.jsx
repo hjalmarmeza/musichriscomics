@@ -11,6 +11,16 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isForging, setIsForging] = useState(false);
   const [status, setStatus] = useState('');
+  const [historyData, setHistoryData] = useState([]);
+
+  useEffect(() => {
+    // Cargar historial global desde el repo si existe
+    fetch('data/forged_history.json')
+      .then(res => res.json())
+      .then(data => setHistoryData(data))
+      .catch(() => console.log('Sin historial global aún.'));
+  }, []);
+
   const [forgedSongs, setForgedSongs] = useState(() => {
     const saved = localStorage.getItem('forged_songs_history');
     return saved ? JSON.parse(saved) : [];
@@ -18,6 +28,8 @@ function App() {
 
   const GH_TOKEN = localStorage.getItem('GH_TOKEN') || '';
   const GH_REPO = 'hjalmarmeza/musichris_comic';
+
+  const allForged = [...new Set([...forgedSongs, ...historyData])];
 
   const filteredCatalog = catalogData.filter(song => 
     song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -163,7 +175,7 @@ function App() {
                 </div>
                 <div className="song-grid">
                   {filteredCatalog.map((song, idx) => {
-                    const isForged = forgedSongs.includes(song.id || song.title);
+                    const isForged = allForged.includes(song.id || song.title);
                     return (
                       <div 
                         key={idx} 

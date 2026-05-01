@@ -110,7 +110,7 @@
 /* --- MODE SELECTOR --- */
 .mode-selector {
   display: flex;
-  margin: 0 1.5rem;
+  margin: 1.5rem 1.5rem 0.5rem;
   background: rgba(255, 255, 255, 0.05);
   padding: 5px;
   border-radius: 15px;
@@ -142,8 +142,8 @@
 .catalog-mode {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  max-height: 400px;
+  gap: 1rem;
+  max-height: 550px;
 }
 
 .input-comic-small {
@@ -226,8 +226,8 @@
 .input-field {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 1.2rem;
+  gap: 15px;
+  margin-bottom: 2rem;
 }
 
 .label-comic {
