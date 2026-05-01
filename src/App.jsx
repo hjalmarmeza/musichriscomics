@@ -179,7 +179,7 @@ function App() {
                     return (
                       <div 
                         key={idx} 
-                        className={`song-card ${selectedSong === song ? 'active' : ''} ${isForged ? 'is-forged' : ''}`}
+                        className={`song-card ${selectedSong === song ? 'selected' : ''} ${isForged ? 'is-forged' : ''}`}
                         onClick={() => setSelectedSong(song)}
                       >
                         <img src={song.thumbnail || 'default_album.png'} alt={song.title} className="song-thumb" />
